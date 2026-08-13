@@ -1,16 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Calculator } from 'lucide-react'
 import type { Pkg } from '../lib/types'
-import {
-  cashflow,
-  defaultCashflowInputs,
-  dutiableValue,
-  project,
-  stampDuty,
-  type CashflowInputs,
-} from '../lib/calc'
-import { money, pct } from '../lib/format'
-import ProjectionChart from './ProjectionChart'
+import { dutiableValue, dutyWithConcession, fhog, monthlyRepayment } from '../lib/calc'
+import { money } from '../lib/format'
 
 function Slider({
   label,
@@ -52,110 +44,137 @@ function Slider({
 }
 
 export default function CalculatorPanel({ pkg }: { pkg: Pkg }) {
-  const [inputs, setInputs] = useState<CashflowInputs>(() => defaultCashflowInputs(pkg))
-  const set = (patch: Partial<CashflowInputs>) => setInputs((p) => ({ ...p, ...patch }))
+  const [depositPct, setDepositPct] = useState(10)
+  const [ratePct, setRatePct] = useState(5.9)
+  const [years, setYears] = useState(30)
+  const [isFHB, setIsFHB] = useState(true)
 
-  const result = useMemo(() => cashflow(inputs), [inputs])
-  const points = useMemo(
-    () => project(inputs, pkg.est_capital_growth ?? 5),
-    [inputs, pkg.est_capital_growth],
-  )
-  const duty = useMemo(() => stampDuty(pkg.state, dutiableValue(pkg)), [pkg])
-  const cashNeeded = result.deposit + duty + 3_000
-
-  if (!pkg.total_weekly_rent) return null
+  const r = useMemo(() => {
+    const deposit = pkg.price * (depositPct / 100)
+    const loan = pkg.price - deposit
+    const monthly = monthlyRepayment(loan, ratePct, years, false)
+    const dutiable = dutiableValue(pkg)
+    const duty = dutyWithConcession(pkg.state, dutiable, isFHB)
+    const grant = isFHB ? fhog(pkg.state, pkg.price) : 0
+    const upfront = deposit + duty.duty + 3_000 - grant
+    return { deposit, loan, monthly, weekly: (monthly * 12) / 52, duty, grant, upfront, dutiable }
+  }, [pkg, depositPct, ratePct, years, isFHB])
 
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-card">
       <div className="flex items-center gap-3 border-b border-line bg-cream/60 px-6 py-5">
         <Calculator size={20} className="text-brass" />
         <div>
-          <p className="eyebrow">Run your own numbers</p>
+          <p className="eyebrow">What would it cost you?</p>
           <h3 className="mt-0.5 font-display text-[18px] font-semibold text-ink">
-            Cashflow &amp; equity modeller
+            Repayments, duty &amp; grants
           </h3>
         </div>
       </div>
 
       <div className="grid gap-8 p-6 lg:grid-cols-[320px_1fr]">
         <div className="space-y-5">
-          <Slider
-            label="Weekly rent (all rooms)"
-            value={inputs.weeklyRent}
-            min={Math.round((pkg.total_weekly_rent ?? 500) * 0.6)}
-            max={Math.round((pkg.total_weekly_rent ?? 500) * 1.4)}
-            step={10}
-            format={(v) => `${money(v)}/wk`}
-            onChange={(v) => set({ weeklyRent: v })}
-          />
-          <Slider label="Deposit" value={inputs.depositPct} min={10} max={50} step={5} format={(v) => `${v}%`} onChange={(v) => set({ depositPct: v })} />
-          <Slider label="Interest rate" value={inputs.ratePct} min={4} max={9} step={0.1} format={(v) => `${v.toFixed(1)}%`} onChange={(v) => set({ ratePct: v })} />
-          <Slider label="Vacancy allowance" value={inputs.vacancyPct} min={0} max={15} step={1} format={(v) => `${v}%`} onChange={(v) => set({ vacancyPct: v })} />
-          <Slider label="Management fee" value={inputs.mgmtPct} min={5} max={25} step={1} format={(v) => `${v}%`} onChange={(v) => set({ mgmtPct: v })} />
+          <Slider label="Deposit" value={depositPct} min={5} max={40} step={1} format={(v) => `${v}% · ${money(Math.round((pkg.price * v) / 100))}`} onChange={setDepositPct} />
+          <Slider label="Interest rate" value={ratePct} min={4} max={8.5} step={0.05} format={(v) => `${v.toFixed(2)}% p.a.`} onChange={setRatePct} />
+          <Slider label="Loan term" value={years} min={15} max={30} step={5} format={(v) => `${v} years`} onChange={setYears} />
 
           <div className="flex items-center justify-between rounded-xl border border-line px-4 py-3">
-            <span className="text-[13px] font-medium text-muted">Repayment type</span>
+            <span className="text-[13px] font-medium text-muted">First home buyer?</span>
             <div className="flex overflow-hidden rounded-lg border border-line text-[12.5px] font-semibold">
               <button
-                onClick={() => set({ interestOnly: true })}
-                className={`px-3 py-1.5 transition-colors ${inputs.interestOnly ? 'bg-pine text-paper' : 'bg-card text-muted'}`}
+                onClick={() => setIsFHB(true)}
+                className={`px-3.5 py-1.5 transition-colors ${isFHB ? 'bg-pine text-paper' : 'bg-card text-muted'}`}
               >
-                Interest only
+                Yes
               </button>
               <button
-                onClick={() => set({ interestOnly: false })}
-                className={`px-3 py-1.5 transition-colors ${!inputs.interestOnly ? 'bg-pine text-paper' : 'bg-card text-muted'}`}
+                onClick={() => setIsFHB(false)}
+                className={`px-3.5 py-1.5 transition-colors ${!isFHB ? 'bg-pine text-paper' : 'bg-card text-muted'}`}
               >
-                P&amp;I
+                No
               </button>
             </div>
           </div>
+
+          {depositPct < 20 && (
+            <p className="rounded-xl bg-brass-soft px-4 py-3 text-[12px] leading-relaxed text-ink/80">
+              Under 20% deposit? This package sits inside the federal <strong>Home Guarantee Scheme</strong>{' '}
+              price caps — eligible buyers purchase with just <strong>5% deposit ({money(Math.round(pkg.price * 0.05))})</strong>{' '}
+              and pay no LMI. No income caps since Oct 2025.
+            </p>
+          )}
         </div>
 
         <div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-xl bg-growth-soft px-4 py-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-growth">Gross yield</p>
-              <p className="tnum mt-1 font-display text-[22px] font-semibold text-ink">{pct(result.grossYieldPct)}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-growth">Per week</p>
+              <p className="tnum mt-1 font-display text-[22px] font-semibold text-ink">{money(Math.round(r.weekly))}</p>
             </div>
             <div className="rounded-xl bg-cream px-4 py-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">Net yield</p>
-              <p className="tnum mt-1 font-display text-[22px] font-semibold text-ink">{pct(result.netYieldPct)}</p>
-            </div>
-            <div className={`rounded-xl px-4 py-3.5 ${result.weeklyCashflow >= 0 ? 'bg-growth-soft' : 'bg-danger-soft'}`}>
-              <p className={`text-[11px] font-semibold uppercase tracking-[0.1em] ${result.weeklyCashflow >= 0 ? 'text-growth' : 'text-danger'}`}>
-                Weekly cashflow
-              </p>
-              <p className="tnum mt-1 font-display text-[22px] font-semibold text-ink">
-                {result.weeklyCashflow >= 0 ? '+' : ''}
-                {money(Math.round(result.weeklyCashflow))}
-              </p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">Per month</p>
+              <p className="tnum mt-1 font-display text-[22px] font-semibold text-ink">{money(Math.round(r.monthly))}</p>
             </div>
             <div className="rounded-xl bg-cream px-4 py-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">Cash to start</p>
-              <p className="tnum mt-1 font-display text-[22px] font-semibold text-ink">{money(Math.round(cashNeeded))}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">Loan amount</p>
+              <p className="tnum mt-1 font-display text-[22px] font-semibold text-ink">{money(Math.round(r.loan))}</p>
+            </div>
+            <div className="rounded-xl bg-cream px-4 py-3.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">Upfront cash</p>
+              <p className="tnum mt-1 font-display text-[22px] font-semibold text-ink">{money(Math.round(Math.max(r.upfront, 0)))}</p>
             </div>
           </div>
 
-          <p className="tnum mt-2.5 text-[12px] text-mist">
-            Incl. transfer duty ≈ {money(Math.round(duty))} on{' '}
-            {pkg.contract_type === 'two_part' && pkg.land_price
-              ? `the land component only (two-part contract, ${pkg.state})`
-              : `the full price (single-part contract, ${pkg.state})`}{' '}
-            + ~$3k legals.
-          </p>
-
-          <div className="mt-6">
-            <ProjectionChart points={points} />
+          <div className="mt-5 space-y-2.5 rounded-xl border border-line px-5 py-4">
+            <div className="tnum flex items-center justify-between text-[13.5px]">
+              <span className="text-muted">
+                Transfer duty{' '}
+                {pkg.contract_type === 'two_part' && pkg.land_price
+                  ? `— charged on the land only (${money(r.dutiable)})`
+                  : '— on the full price'}
+              </span>
+              <span className="font-bold text-ink">
+                {r.duty.duty === 0 ? <span className="text-growth">$0</span> : money(Math.round(r.duty.duty))}
+              </span>
+            </div>
+            {r.duty.saving > 0 && (
+              <div className="tnum flex items-center justify-between text-[13px]">
+                <span className="text-muted">{r.duty.note}</span>
+                <span className="font-semibold text-growth">saves {money(Math.round(r.duty.saving))}</span>
+              </div>
+            )}
+            {r.grant > 0 && (
+              <div className="tnum flex items-center justify-between text-[13px]">
+                <span className="text-muted">First Home Owner Grant ({pkg.state}, new build)</span>
+                <span className="font-semibold text-growth">+{money(r.grant)}</span>
+              </div>
+            )}
+            <div className="tnum flex items-center justify-between text-[13px]">
+              <span className="text-muted">Legals &amp; conveyancing (est.)</span>
+              <span className="font-semibold text-ink">{money(3000)}</span>
+            </div>
+            {isFHB && r.duty.saving + r.grant > 0 && (
+              <div className="tnum flex items-center justify-between rounded-lg bg-growth-soft px-3 py-2.5 text-[13.5px]">
+                <span className="font-semibold text-ink">Total government savings</span>
+                <span className="font-bold text-growth">{money(Math.round(r.duty.saving + r.grant))}</span>
+              </div>
+            )}
           </div>
+
+          {pkg.total_weekly_rent ? (
+            <p className="tnum mt-4 rounded-xl bg-growth-soft px-4 py-3 text-[13px] text-ink/85">
+              <strong>Investing?</strong> This package has a rental appraisal of{' '}
+              <strong>{money(pkg.total_weekly_rent)}/week</strong> (
+              {(((pkg.total_weekly_rent * 52) / pkg.price) * 100).toFixed(1)}% gross yield, projected — not
+              guaranteed).
+            </p>
+          ) : null}
 
           <p className="mt-4 text-[11.5px] leading-relaxed text-mist">
-            *Projected, not guaranteed. Assumes {pct(pkg.est_capital_growth ?? 5)} capital growth, 3% annual
-            rent growth, {inputs.vacancyPct}% vacancy, {inputs.mgmtPct}% management,{' '}
-            {money(inputs.insurancePerYear)} insurance, {money(inputs.ratesPerYear)} rates,{' '}
-            {money(inputs.maintenancePerYear)} maintenance
-            {inputs.utilitiesPerYear > 0 ? `, ${money(inputs.utilitiesPerYear)} owner-paid utilities` : ''}.
-            General information only — not financial advice. Seek independent advice before investing.
+            *Estimates only, based on the inputs shown, principal &amp; interest repayments and 2026 VIC/SA
+            first-home-buyer rules for new builds (verified August 2026). Grants and concessions are
+            subject to eligibility. Not a loan offer, not financial advice — confirm with your broker and
+            conveyancer.
           </p>
         </div>
       </div>

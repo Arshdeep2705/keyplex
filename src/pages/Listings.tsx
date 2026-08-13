@@ -3,12 +3,11 @@ import { Search, SlidersHorizontal } from 'lucide-react'
 import type { Pkg, PackageType } from '../lib/types'
 import { TYPE_LABEL } from '../lib/types'
 import { fetchPublished } from '../lib/data'
-import { pkgYield } from '../lib/calc'
 import PackageCard from '../components/PackageCard'
 import Reveal from '../components/Reveal'
 
-const TYPE_FILTERS: (PackageType | 'all')[] = ['all', 'coliving', 'dual_key', 'rooming_house', 'house_land', 'ndis']
-const PRICE_STEPS = [500_000, 650_000, 750_000, 850_000, 950_000, 1_100_000, 1_300_000]
+const TYPE_FILTERS: (PackageType | 'all')[] = ['all', 'house_land', 'dual_occupancy', 'dual_key']
+const PRICE_STEPS = [600_000, 650_000, 700_000, 750_000, 800_000, 900_000, 1_000_000]
 
 function Skeleton() {
   return (
@@ -29,13 +28,14 @@ export default function Listings() {
   const [error, setError] = useState(false)
   const [type, setType] = useState<PackageType | 'all'>('all')
   const [state, setState] = useState('all')
+  const [storeys, setStoreys] = useState(0)
   const [maxPrice, setMaxPrice] = useState(0)
   const [minBeds, setMinBeds] = useState(0)
-  const [sort, setSort] = useState<'newest' | 'yield' | 'price_asc' | 'price_desc'>('newest')
+  const [sort, setSort] = useState<'newest' | 'price_asc' | 'price_desc'>('newest')
   const [q, setQ] = useState('')
 
   useEffect(() => {
-    document.title = 'Investment Packages — Keyplex'
+    document.title = 'House & Land Packages — Keyplex'
     fetchPublished().then(setAll).catch(() => setError(true))
   }, [])
 
@@ -44,6 +44,7 @@ export default function Listings() {
     let list = [...all]
     if (type !== 'all') list = list.filter((p) => p.package_type === type)
     if (state !== 'all') list = list.filter((p) => p.state === state)
+    if (storeys > 0) list = list.filter((p) => p.storeys === storeys)
     if (maxPrice > 0) list = list.filter((p) => p.price <= maxPrice)
     if (minBeds > 0) list = list.filter((p) => p.beds >= minBeds)
     if (q.trim()) {
@@ -52,13 +53,11 @@ export default function Listings() {
         (p) =>
           p.suburb.toLowerCase().includes(s) ||
           p.title.toLowerCase().includes(s) ||
+          (p.design_name ?? '').toLowerCase().includes(s) ||
           (p.estate ?? '').toLowerCase().includes(s),
       )
     }
     switch (sort) {
-      case 'yield':
-        list.sort((a, b) => (pkgYield(b) ?? -1) - (pkgYield(a) ?? -1))
-        break
       case 'price_asc':
         list.sort((a, b) => a.price - b.price)
         break
@@ -67,7 +66,7 @@ export default function Listings() {
         break
     }
     return list
-  }, [all, type, state, maxPrice, minBeds, sort, q])
+  }, [all, type, state, storeys, maxPrice, minBeds, sort, q])
 
   return (
     <>
@@ -75,11 +74,11 @@ export default function Listings() {
         <div className="mx-auto max-w-7xl px-5 py-14 lg:px-8">
           <p className="eyebrow fade-up">Live inventory</p>
           <h1 className="display-tight mt-3 font-display text-[36px] font-semibold sm:text-[44px]">
-            Investment packages
+            House &amp; land packages
           </h1>
           <p className="mt-3 max-w-xl text-[15px] text-paper/65">
-            Every package: full pricing, projected income, compliance pathway and a free brochure.
-            No gates, no games.
+            Every package: full fixed price, live concept floorplan, repayment estimate and a free
+            brochure. No appointments needed to see the numbers.
           </p>
         </div>
       </section>
@@ -107,14 +106,19 @@ export default function Listings() {
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Suburb or estate…"
-                className="field !w-44 !py-2 !pl-9 text-[13.5px]"
+                placeholder="Suburb, estate or design…"
+                className="field !w-48 !py-2 !pl-9 text-[13.5px]"
               />
             </div>
             <select value={state} onChange={(e) => setState(e.target.value)} className="field !w-auto !py-2 text-[13.5px]">
               <option value="all">All states</option>
               <option value="VIC">VIC</option>
               <option value="SA">SA</option>
+            </select>
+            <select value={storeys} onChange={(e) => setStoreys(Number(e.target.value))} className="field !w-auto !py-2 text-[13.5px]">
+              <option value={0}>Any storeys</option>
+              <option value={1}>Single storey</option>
+              <option value={2}>Double storey</option>
             </select>
             <select value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} className="field !w-auto !py-2 text-[13.5px]">
               <option value={0}>Any price</option>
@@ -126,7 +130,7 @@ export default function Listings() {
             </select>
             <select value={minBeds} onChange={(e) => setMinBeds(Number(e.target.value))} className="field !w-auto !py-2 text-[13.5px]">
               <option value={0}>Any beds</option>
-              {[3, 4, 5, 6, 9].map((b) => (
+              {[3, 4, 5].map((b) => (
                 <option key={b} value={b}>
                   {b}+ beds
                 </option>
@@ -136,7 +140,6 @@ export default function Listings() {
               <SlidersHorizontal size={14} className="text-mist" />
               <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="field !w-auto !py-2 text-[13.5px]">
                 <option value="newest">Newest first</option>
-                <option value="yield">Highest yield</option>
                 <option value="price_asc">Price: low → high</option>
                 <option value="price_desc">Price: high → low</option>
               </select>
@@ -168,7 +171,7 @@ export default function Listings() {
                 <div className="rounded-2xl border border-dashed border-line py-20 text-center">
                   <p className="font-display text-lg font-semibold text-ink">No packages match those filters</p>
                   <p className="mt-2 text-[14px] text-muted">
-                    Widen the search — or tell us what you're after and we'll source it.
+                    Widen the search — or tell us what you're after and we'll package it for you.
                   </p>
                 </div>
               ) : (

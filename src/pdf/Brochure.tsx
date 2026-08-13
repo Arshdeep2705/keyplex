@@ -1,9 +1,16 @@
 import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import type { Pkg } from '../lib/types'
-import { TYPE_LABEL } from '../lib/types'
-import { cashflow, defaultCashflowInputs, dutiableValue, pkgYield, stampDuty } from '../lib/calc'
-import { getCompliance } from '../lib/compliance'
-import { money, pct, sqm } from '../lib/format'
+import { TYPE_LABEL, toSquares } from '../lib/types'
+import {
+  dutiableValue,
+  dutyWithConcession,
+  estWeeklyRepayment,
+  fhog,
+  monthlyRepayment,
+} from '../lib/calc'
+import { generateFloorplan, roomSchedule } from '../lib/floorplan'
+import { money, sqm } from '../lib/format'
+import FloorplanPdf from './FloorplanPdf'
 import fraunces from './fonts/Fraunces-SemiBold.ttf'
 import archivo from './fonts/Archivo-Regular.ttf'
 import archivoSemi from './fonts/Archivo-SemiBold.ttf'
@@ -35,7 +42,6 @@ const s = StyleSheet.create({
   h1: { fontFamily: 'Fraunces', fontSize: 26, color: PAPER, marginTop: 8, lineHeight: 1.15 },
   h2: { fontFamily: 'Fraunces', fontSize: 16, color: INK, marginBottom: 10 },
   h3: { fontFamily: 'Fraunces', fontSize: 11.5, color: INK, marginBottom: 5 },
-  muted: { color: MUTED },
   row: { flexDirection: 'row' },
   footer: {
     position: 'absolute',
@@ -59,18 +65,6 @@ const s = StyleSheet.create({
     paddingVertical: 5.5,
     borderBottomWidth: 0.75,
     borderBottomColor: LINE,
-  },
-  tag: {
-    backgroundColor: PINE,
-    color: BRASS_BRIGHT,
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 3,
-    fontSize: 7.5,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    fontWeight: 600,
-    alignSelf: 'flex-start',
   },
   card: { backgroundColor: '#FFFFFF', borderWidth: 0.75, borderColor: LINE, borderRadius: 8, padding: 14 },
 })
@@ -96,15 +90,28 @@ function KV({ k, v }: { k: string; v: string }) {
 }
 
 export default function Brochure({ pkg }: { pkg: Pkg }) {
-  const yieldPct = pkgYield(pkg)
-  const inputs = defaultCashflowInputs(pkg)
-  const cf = pkg.total_weekly_rent ? cashflow(inputs) : null
-  const duty = stampDuty(pkg.state, dutiableValue(pkg))
-  const compliance = getCompliance(pkg)
-  const rooms = pkg.rooms_rentable ?? 0
-  const isDualKey = pkg.package_type === 'dual_key' || pkg.package_type === 'dual_occupancy'
-  const perRoom = pkg.rent_per_room ?? (rooms > 0 && pkg.total_weekly_rent ? pkg.total_weekly_rent / rooms : 0)
+  const weekly = estWeeklyRepayment(pkg.price)
+  const dutiable = dutiableValue(pkg)
+  const dutyFhb = dutyWithConcession(pkg.state, dutiable, true)
+  const dutyInv = dutyWithConcession(pkg.state, dutiable, false)
+  const grant = fhog(pkg.state, pkg.price)
+  const deposit10 = pkg.price * 0.1
+  const monthly = monthlyRepayment(pkg.price - deposit10, 5.6, 30, false)
   const generated = new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })
+
+  const plan = generateFloorplan({
+    beds: pkg.package_type === 'dual_occupancy' ? pkg.beds - (pkg.unit_beds ?? 0) : pkg.beds,
+    baths: pkg.baths,
+    cars: pkg.cars,
+    living: pkg.living_areas ?? 1,
+    study: pkg.has_study,
+    alfresco: pkg.has_alfresco,
+    storeys: pkg.storeys,
+    houseArea: pkg.house_area ?? 200,
+    lotWidth: pkg.lot_width,
+    variant: pkg.floorplan_variant,
+  })
+  const schedule = roomSchedule(plan)
 
   return (
     <Document title={`${pkg.title} — Keyplex`} author="Keyplex">
@@ -117,7 +124,12 @@ export default function Brochure({ pkg }: { pkg: Pkg }) {
         )}
         <View style={{ backgroundColor: PINE, flex: 1, padding: 36 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={s.eyebrow}>Investment package · {TYPE_LABEL[pkg.package_type]}</Text>
+            <Text style={s.eyebrow}>
+              {pkg.package_type === 'house_land'
+                ? `${pkg.storeys > 1 ? 'Double storey' : 'Single storey'} house & land`
+                : TYPE_LABEL[pkg.package_type]}{' '}
+              package
+            </Text>
             <Text style={{ fontFamily: 'Fraunces', fontSize: 13, color: BRASS_BRIGHT }}>Keyplex</Text>
           </View>
           <Text style={s.h1}>{pkg.title}</Text>
@@ -131,7 +143,7 @@ export default function Brochure({ pkg }: { pkg: Pkg }) {
 
           <View style={[s.row, { gap: 18 }]}>
             <View style={s.metric}>
-              <Text style={s.metricLabel}>Total price</Text>
+              <Text style={s.metricLabel}>Fixed price</Text>
               <Text style={s.metricValue}>{money(pkg.price)}</Text>
               {pkg.land_price && pkg.build_price ? (
                 <Text style={s.metricSub}>
@@ -139,134 +151,119 @@ export default function Brochure({ pkg }: { pkg: Pkg }) {
                 </Text>
               ) : null}
             </View>
-            {yieldPct ? (
-              <View style={s.metric}>
-                <Text style={s.metricLabel}>Gross yield</Text>
-                <Text style={[s.metricValue, { color: BRASS_BRIGHT }]}>{pct(yieldPct)}</Text>
-                <Text style={s.metricSub}>Projected, not guaranteed</Text>
-              </View>
-            ) : null}
-            {pkg.total_weekly_rent ? (
-              <View style={s.metric}>
-                <Text style={s.metricLabel}>Weekly income</Text>
-                <Text style={s.metricValue}>{money(pkg.total_weekly_rent)}</Text>
-                <Text style={s.metricSub}>{rooms} income stream{rooms === 1 ? '' : 's'}</Text>
-              </View>
-            ) : null}
             <View style={s.metric}>
-              <Text style={s.metricLabel}>Configuration</Text>
+              <Text style={s.metricLabel}>From per week</Text>
+              <Text style={[s.metricValue, { color: BRASS_BRIGHT }]}>{money(Math.round(weekly))}</Text>
+              <Text style={s.metricSub}>Est. repayments*</Text>
+            </View>
+            <View style={s.metric}>
+              <Text style={s.metricLabel}>Home</Text>
               <Text style={s.metricValue}>
                 {pkg.beds}·{pkg.baths}·{pkg.cars}
               </Text>
-              <Text style={s.metricSub}>Bed · Bath · Car</Text>
+              <Text style={s.metricSub}>Bed · Bath · Car — {toSquares(pkg.house_area)}</Text>
+            </View>
+            <View style={s.metric}>
+              <Text style={s.metricLabel}>Land</Text>
+              <Text style={s.metricValue}>{pkg.land_size ?? '—'} m²</Text>
+              <Text style={s.metricSub}>{pkg.title_status ?? ''}</Text>
             </View>
           </View>
 
           <Text style={{ fontSize: 7, color: '#7d8b83', marginTop: 22 }}>
-            Multi-income homes. Built to perform. — Prepared {generated}. Images illustrative; may include upgrade items.
+            House &amp; land, packaged properly. — Prepared {generated}. Images illustrative; may include upgrade items.
           </Text>
         </View>
       </Page>
 
-      {/* ——— PAGE 2 · THE NUMBERS ——— */}
+      {/* ——— PAGE 2 · FLOORPLAN ——— */}
       <Page size="A4" style={[s.page, s.pagePad]}>
-        <Text style={s.eyebrow}>Package summary</Text>
-        <Text style={[s.h2, { marginTop: 6 }]}>The numbers</Text>
+        <Text style={s.eyebrow}>
+          {pkg.design_name ? `The ${pkg.design_name}` : 'Concept design'} · ~{plan.areaM2} m² ·{' '}
+          {toSquares(plan.areaM2)}
+        </Text>
+        <Text style={[s.h2, { marginTop: 6 }]}>Concept floor plan</Text>
+
+        <View style={{ alignItems: 'center' }}>
+          {plan.storeys.map((st) => (
+            <View key={st.label} style={{ marginBottom: 6, alignItems: 'center' }}>
+              <FloorplanPdf storey={st} maxW={520} maxH={plan.storeys.length > 1 ? 300 : 480} />
+              {plan.storeys.length > 1 ? (
+                <Text style={{ fontSize: 7.5, color: BRASS, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                  {st.label}
+                </Text>
+              ) : null}
+            </View>
+          ))}
+        </View>
+
+        <Text style={{ fontSize: 6.8, color: MUTED, marginTop: 8 }}>
+          Auto-generated concept plan — indicative only, not for construction. Final working drawings are
+          prepared by the builder and may differ. Dimensions approximate.
+        </Text>
+
+        <Footer pkg={pkg} pageNo="2" />
+      </Page>
+
+      {/* ——— PAGE 3 · ROOM SCHEDULE + PACKAGE DETAILS ——— */}
+      <Page size="A4" style={[s.page, s.pagePad]}>
+        <Text style={s.eyebrow}>The details</Text>
+        <Text style={[s.h2, { marginTop: 6 }]}>Package summary &amp; room schedule</Text>
 
         <View style={[s.row, { gap: 16 }]}>
           <View style={{ flex: 1 }}>
             <View style={s.card}>
               <Text style={s.h3}>Property</Text>
-              <KV k="Land size" v={sqm(pkg.land_size)} />
-              <KV k="House area" v={sqm(pkg.house_area)} />
-              <KV k="Lot width" v={pkg.lot_width ? `${pkg.lot_width} m` : '—'} />
-              <KV k="Bedrooms / Bathrooms" v={`${pkg.beds} / ${pkg.baths}`} />
-              {isDualKey && pkg.unit_beds ? <KV k="Unit configuration" v={`${pkg.unit_beds} bed · ${pkg.unit_baths} bath`} /> : null}
+              <KV k="Design" v={pkg.design_name ?? '—'} />
+              <KV k="Storeys" v={String(pkg.storeys)} />
+              <KV k="House area" v={`${sqm(pkg.house_area)} · ${toSquares(pkg.house_area)}`} />
+              <KV k="Land size / frontage" v={`${sqm(pkg.land_size)} · ${pkg.lot_width ?? '—'} m`} />
+              <KV k="Bed / Bath / Car" v={`${pkg.beds} / ${pkg.baths} / ${pkg.cars}`} />
+              <KV k="Study / Alfresco" v={`${pkg.has_study ? 'Yes' : '—'} / ${pkg.has_alfresco ? 'Yes' : '—'}`} />
               <KV k="Title status" v={pkg.title_status ?? '—'} />
               <KV k="Build time" v={pkg.build_time_weeks ? `~${pkg.build_time_weeks} weeks` : '—'} />
               <KV k="Energy rating" v={pkg.energy_rating ? `${pkg.energy_rating} star` : '—'} />
-              <KV
-                k="Contract"
-                v={pkg.contract_type === 'single_part' ? 'Single-part (SMSF-ready)' : 'Two-part H&L'}
-              />
               <View style={[s.tableRow, { borderBottomWidth: 0 }]}>
-                <Text style={{ color: MUTED, fontSize: 9 }}>Transfer duty (est.)</Text>
+                <Text style={{ color: MUTED, fontSize: 9 }}>Contract</Text>
                 <Text style={{ fontWeight: 600, fontSize: 9 }}>
-                  {money(Math.round(duty))}{' '}
-                  {pkg.contract_type === 'two_part' && pkg.land_price ? '(land only)' : ''}
+                  {pkg.contract_type === 'two_part' ? 'Two-part (duty on land only)' : 'Single contract'}
                 </Text>
               </View>
             </View>
+
+            {pkg.highlights?.length ? (
+              <View style={{ marginTop: 12 }}>
+                <Text style={s.h3}>Why this package</Text>
+                {pkg.highlights.map((h, i) => (
+                  <View key={i} style={{ flexDirection: 'row', gap: 6, marginBottom: 3.5 }}>
+                    <Text style={{ color: BRASS, fontWeight: 600 }}>—</Text>
+                    <Text style={{ fontSize: 8.5, color: MUTED, flex: 1, lineHeight: 1.45 }}>{h}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
 
           <View style={{ flex: 1 }}>
-            {pkg.total_weekly_rent ? (
-              <View style={s.card}>
-                <Text style={s.h3}>Projected rental income*</Text>
-                {isDualKey ? (
-                  <>
-                    <KV k={`Main dwelling · ${pkg.beds}bd ${pkg.baths}ba`} v={`${money(pkg.total_weekly_rent - Math.round(pkg.total_weekly_rent * 0.4))}/wk`} />
-                    {pkg.unit_beds ? <KV k={`Unit · ${pkg.unit_beds}bd ${pkg.unit_baths}ba`} v={`${money(Math.round(pkg.total_weekly_rent * 0.4))}/wk`} /> : null}
-                  </>
-                ) : (
-                  Array.from({ length: rooms }).map((_, i) => (
-                    <KV key={i} k={`Room ${i + 1} · ensuite + robe`} v={`${money(Math.round(perRoom))}/wk`} />
-                  ))
-                )}
-                <View style={{ backgroundColor: '#E7F1EB', borderRadius: 5, padding: 8, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={{ fontWeight: 600, fontSize: 9.5 }}>Combined</Text>
-                  <Text style={{ fontWeight: 600, fontSize: 9.5, color: GROWTH }}>
-                    {money(pkg.total_weekly_rent)}/wk · {pct(yieldPct)} gross
+            <View style={s.card}>
+              <Text style={s.h3}>Room schedule</Text>
+              {schedule.map((r, i) => (
+                <View key={i} style={s.tableRow}>
+                  <Text style={{ color: MUTED, fontSize: 8.5 }}>
+                    {r.name}
+                    {plan.storeys.length > 1 ? ` · ${r.storey}` : ''}
                   </Text>
+                  <Text style={{ fontWeight: 600, fontSize: 8.5 }}>{r.dims}</Text>
                 </View>
-                {rooms > 1 ? (
-                  <Text style={{ fontSize: 7.5, color: MUTED, marginTop: 7, lineHeight: 1.5 }}>
-                    Vacancy resilience: one empty {isDualKey ? 'dwelling' : 'room'} costs ~
-                    {Math.round(100 / Math.max(rooms, 1))}% of income — not 100% as with a single tenancy.
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-
-            {cf ? (
-              <View style={[s.card, { marginTop: 12 }]}>
-                <Text style={s.h3}>Cashflow snapshot*</Text>
-                <KV k="Gross yield" v={pct(cf.grossYieldPct)} />
-                <KV k="Net yield (after costs, pre-loan)" v={pct(cf.netYieldPct)} />
-                <KV k={`Deposit (${inputs.depositPct}%)`} v={money(Math.round(cf.deposit))} />
-                <View style={[s.tableRow, { borderBottomWidth: 0 }]}>
-                  <Text style={{ color: MUTED, fontSize: 9 }}>Weekly cashflow (IO loan)</Text>
-                  <Text style={{ fontWeight: 600, fontSize: 9, color: cf.weeklyCashflow >= 0 ? GROWTH : '#B3543E' }}>
-                    {cf.weeklyCashflow >= 0 ? '+' : ''}
-                    {money(Math.round(cf.weeklyCashflow))}
-                  </Text>
-                </View>
-                <Text style={{ fontSize: 7, color: MUTED, marginTop: 6, lineHeight: 1.5 }}>
-                  Assumptions: {inputs.ratePct}% interest-only, {inputs.vacancyPct}% vacancy, {inputs.mgmtPct}% management,{' '}
-                  {money(inputs.insurancePerYear)} insurance, {money(inputs.ratesPerYear)} rates, {money(inputs.maintenancePerYear)} maintenance
-                  {inputs.utilitiesPerYear ? `, ${money(inputs.utilitiesPerYear)} owner-paid utilities` : ''}. Model your own figures on the live listing.
-                </Text>
-              </View>
-            ) : null}
+              ))}
+            </View>
           </View>
         </View>
 
-        {pkg.highlights?.length ? (
-          <View style={{ marginTop: 14 }}>
-            <Text style={s.h3}>Why this package</Text>
-            {pkg.highlights.map((h, i) => (
-              <View key={i} style={{ flexDirection: 'row', gap: 6, marginBottom: 3.5 }}>
-                <Text style={{ color: BRASS, fontWeight: 600 }}>—</Text>
-                <Text style={{ fontSize: 9, color: MUTED, flex: 1 }}>{h}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        <Footer pkg={pkg} pageNo="2" />
+        <Footer pkg={pkg} pageNo="3" />
       </Page>
 
-      {/* ——— PAGE 3 · INCLUSIONS + COMPLIANCE ——— */}
+      {/* ——— PAGE 4 · INCLUSIONS ——— */}
       <Page size="A4" style={[s.page, s.pagePad]}>
         <Text style={s.eyebrow}>Turnkey scope</Text>
         <Text style={[s.h2, { marginTop: 6 }]}>Full inclusions</Text>
@@ -285,70 +282,60 @@ export default function Brochure({ pkg }: { pkg: Pkg }) {
           ))}
         </View>
 
-        <View style={{ marginTop: 14, backgroundColor: PINE, borderRadius: 8, padding: 16 }}>
-          <Text style={[s.eyebrow]}>Compliance pathway · {pkg.state}</Text>
-          <Text style={{ fontFamily: 'Fraunces', fontSize: 12.5, color: PAPER, marginTop: 5 }}>
-            {compliance.classification}
-          </Text>
-          <Text style={{ fontSize: 8.5, color: '#B9C4BD', marginTop: 6, lineHeight: 1.55 }}>
-            {compliance.summary}
-          </Text>
-          {compliance.checks.length ? (
-            <View style={{ marginTop: 8 }}>
-              {compliance.checks.map((c) => (
-                <View key={c.label} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
-                  <Text style={{ fontSize: 8, color: '#B9C4BD' }}>
-                    {c.pass === true ? '✓ ' : c.pass === false ? '✗ ' : '· '}
-                    {c.label}
-                  </Text>
-                  <Text style={{ fontSize: 8, color: PAPER, fontWeight: 600 }}>{c.value}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-          <Text style={{ fontSize: 7, color: '#7d8b83', marginTop: 8 }}>
-            General information only, not legal advice. Compliance information last verified {compliance.lastVerified}.
-          </Text>
-        </View>
-
-        <Footer pkg={pkg} pageNo="3" />
+        <Footer pkg={pkg} pageNo="4" />
       </Page>
 
-      {/* ——— PAGE 4 · FINANCE, NEXT STEPS, DISCLAIMERS ——— */}
+      {/* ——— PAGE 5 · NUMBERS, NEXT STEPS, FINE PRINT ——— */}
       <Page size="A4" style={[s.page, s.pagePad]}>
-        <Text style={s.eyebrow}>Getting it done</Text>
-        <Text style={[s.h2, { marginTop: 6 }]}>Finance, next steps &amp; the fine print</Text>
+        <Text style={s.eyebrow}>Your numbers</Text>
+        <Text style={[s.h2, { marginTop: 6 }]}>Repayments, grants &amp; next steps</Text>
 
-        {compliance.financeNote ? (
-          <View style={[s.card, { backgroundColor: '#F4ECDD', borderColor: '#E5D8BE' }]}>
-            <Text style={s.h3}>Finance readiness</Text>
-            <Text style={{ fontSize: 8.5, color: MUTED, lineHeight: 1.55 }}>{compliance.financeNote}</Text>
+        <View style={[s.row, { gap: 16 }]}>
+          <View style={{ flex: 1 }}>
+            <View style={s.card}>
+              <Text style={s.h3}>Repayment snapshot*</Text>
+              <KV k="Deposit (10%)" v={money(Math.round(deposit10))} />
+              <KV k="Loan amount" v={money(Math.round(pkg.price - deposit10))} />
+              <KV k="Monthly (5.60% p.a., 30yr P&I)" v={money(Math.round(monthly))} />
+              <View style={[s.tableRow, { borderBottomWidth: 0 }]}>
+                <Text style={{ color: MUTED, fontSize: 9 }}>Per week</Text>
+                <Text style={{ fontWeight: 600, fontSize: 9, color: GROWTH }}>{money(Math.round(weekly))}</Text>
+              </View>
+            </View>
+
+            <View style={[s.card, { marginTop: 12 }]}>
+              <Text style={s.h3}>Stamp duty &amp; grants ({pkg.state})</Text>
+              <KV
+                k={`Duty — first home buyer${dutyFhb.saving > 0 ? ` (saves ${money(Math.round(dutyFhb.saving))})` : ''}`}
+                v={dutyFhb.duty === 0 ? '$0' : money(Math.round(dutyFhb.duty))}
+              />
+              <KV k="Duty — investor / non-FHB" v={money(Math.round(dutyInv.duty))} />
+              {grant > 0 ? <KV k="First Home Owner Grant (new build)" v={`+${money(grant)}`} /> : null}
+              <View style={[s.tableRow, { borderBottomWidth: 0 }]}>
+                <Text style={{ color: MUTED, fontSize: 9 }}>Duty assessed on</Text>
+                <Text style={{ fontWeight: 600, fontSize: 9 }}>
+                  {pkg.contract_type === 'two_part' && pkg.land_price ? `Land only (${money(dutiable)})` : 'Full price'}
+                </Text>
+              </View>
+            </View>
           </View>
-        ) : (
-          <View style={[s.card, { backgroundColor: '#F4ECDD', borderColor: '#E5D8BE' }]}>
-            <Text style={s.h3}>Finance readiness</Text>
-            <Text style={{ fontSize: 8.5, color: MUTED, lineHeight: 1.55 }}>
-              This configuration is typically treated as standard residential by lenders. Our broker
-              panel can pre-assess your borrowing position before you commit.
-            </Text>
+
+          <View style={{ flex: 1 }}>
+            <View style={[s.card, { backgroundColor: PINE, borderColor: PINE }]}>
+              <Text style={{ fontFamily: 'Fraunces', fontSize: 12.5, color: PAPER }}>Next steps</Text>
+              <Text style={{ fontSize: 8.5, color: '#B9C4BD', marginTop: 6, lineHeight: 1.6 }}>
+                1. Call 1300 539 759 or email hello@keyplex.com.au{'\n'}
+                2. We confirm your grants, duty position and borrowing power{'\n'}
+                3. Review the fixed-price contract with your own advisers{'\n'}
+                4. Reserve with a refundable initial hold — then we build
+              </Text>
+            </View>
+
+            <View style={[s.card, { marginTop: 12 }]}>
+              <Text style={s.h3}>About {pkg.suburb}</Text>
+              <Text style={{ fontSize: 8.5, color: MUTED, lineHeight: 1.55 }}>{pkg.description ?? ''}</Text>
+            </View>
           </View>
-        )}
-
-        <View style={[s.card, { marginTop: 12 }]}>
-          <Text style={s.h3}>Location · {pkg.suburb}, {pkg.state}</Text>
-          <Text style={{ fontSize: 8.5, color: MUTED, lineHeight: 1.55 }}>
-            {pkg.description ?? ''}
-          </Text>
-        </View>
-
-        <View style={[s.card, { marginTop: 12, backgroundColor: PINE, borderColor: PINE }]}>
-          <Text style={{ fontFamily: 'Fraunces', fontSize: 12.5, color: PAPER }}>Next steps</Text>
-          <Text style={{ fontSize: 8.5, color: '#B9C4BD', marginTop: 6, lineHeight: 1.6 }}>
-            1. Book a strategy call — 1300 539 759 or hello@keyplex.com.au{'\n'}
-            2. Receive the full cashflow model and compliance map for this package{'\n'}
-            3. Take everything to your own financial, legal and tax advisers{'\n'}
-            4. Reserve with a fully refundable initial hold
-          </Text>
         </View>
 
         <View style={{ marginTop: 14 }}>
@@ -356,20 +343,18 @@ export default function Brochure({ pkg }: { pkg: Pkg }) {
           <Text style={{ fontSize: 6.8, color: MUTED, lineHeight: 1.55 }}>
             Price is based on the standard plan; floorplan changes cost extra. Facades and images are
             illustrative and may include upgrade items, non-standard landscaping, lighting and furniture.
-            Stamp duty, legal and conveyancing costs are excluded unless stated. Floor-plan dimensions are
-            approximate. All projected rents, yields, cashflows and growth figures are estimates based on
-            the stated assumptions; they are illustrative only and not guaranteed — actual returns depend
-            on occupancy, management and market conditions. Rooming house operation requires council
-            registration, operator licensing and ongoing minimum standards compliance in VIC (4+ unrelated
-            occupants), and CBS registration in SA (5+ persons). Lending for rooming-house-configured
-            property may be restricted (typically 60–70% LVR) and specialist insurance is required. This
-            document is general information only and does not constitute financial, legal or taxation
-            advice. Keyplex recommends obtaining independent advice from licensed professionals before any
-            investment decision. Prepared {generated}. Compliance information last verified {compliance.lastVerified}.
+            The concept floor plan in this document is auto-generated and indicative only — it is not a
+            working drawing and must not be used for construction; final drawings are prepared by the
+            builder. Floor-plan dimensions are approximate. Repayment estimates assume the inputs stated
+            and are not a loan offer. Grants and duty concessions are subject to eligibility and may
+            change; figures current as at {generated}. Stamp duty, legal and conveyancing costs are
+            excluded unless stated. This document is general information only and does not constitute
+            financial, legal or taxation advice — obtain independent advice before purchasing. Land
+            subject to availability and developer approval.
           </Text>
         </View>
 
-        <Footer pkg={pkg} pageNo="4" />
+        <Footer pkg={pkg} pageNo="5" />
       </Page>
     </Document>
   )

@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, X } from 'lucide-react'
 import type { Pkg } from '../lib/types'
-import { TYPE_LABEL } from '../lib/types'
+import { TYPE_LABEL, toSquares } from '../lib/types'
 import { fetchPublished } from '../lib/data'
-import { dutiableValue, pkgYield, stampDuty } from '../lib/calc'
-import { getCompliance } from '../lib/compliance'
-import { money, pct, sqm } from '../lib/format'
+import { dutiableValue, dutyWithConcession, estWeeklyRepayment, fhog } from '../lib/calc'
+import { money, sqm } from '../lib/format'
 import { useCompare } from '../lib/CompareContext'
 
 export default function Compare() {
@@ -14,14 +13,22 @@ export default function Compare() {
   const [all, setAll] = useState<Pkg[]>([])
 
   useEffect(() => {
-    document.title = 'Compare Strategies — Keyplex'
+    document.title = 'Compare Packages — Keyplex'
     fetchPublished().then(setAll).catch(() => {})
   }, [])
 
   const pkgs = slugs.map((s) => all.find((p) => p.slug === s)).filter(Boolean) as Pkg[]
 
   const rows: { label: string; render: (p: Pkg) => React.ReactNode }[] = [
-    { label: 'Strategy', render: (p) => <span className="font-semibold text-ink">{TYPE_LABEL[p.package_type]}</span> },
+    {
+      label: 'Type',
+      render: (p) => (
+        <span className="font-semibold text-ink">
+          {p.package_type === 'house_land' ? `${p.storeys > 1 ? 'Double' : 'Single'} storey` : TYPE_LABEL[p.package_type]}
+        </span>
+      ),
+    },
+    { label: 'Design', render: (p) => p.design_name ?? '—' },
     { label: 'Total price', render: (p) => <span className="tnum font-display text-lg font-semibold text-ink">{money(p.price)}</span> },
     {
       label: 'Land + build split',
@@ -30,62 +37,59 @@ export default function Compare() {
           <span className="tnum">{money(p.land_price)} + {money(p.build_price)}</span>
         ) : ('—'),
     },
-    { label: 'Contract', render: (p) => (p.contract_type === 'single_part' ? 'Single-part (SMSF-ready)' : 'Two-part H&L') },
     {
-      label: 'Transfer duty (est.)',
-      render: (p) => (
-        <span className="tnum">
-          {money(Math.round(stampDuty(p.state, dutiableValue(p))))}
-          <span className="block text-[11px] text-mist">
-            {p.contract_type === 'two_part' && p.land_price ? 'on land only' : 'on full price'}
+      label: 'Est. repayments*',
+      render: (p) => <span className="tnum font-semibold text-growth">{money(Math.round(estWeeklyRepayment(p.price)))}/wk</span>,
+    },
+    {
+      label: 'FHB transfer duty*',
+      render: (p) => {
+        const d = dutyWithConcession(p.state, dutiableValue(p), true)
+        return (
+          <span className="tnum">
+            {d.duty === 0 ? <span className="font-bold text-growth">$0</span> : money(Math.round(d.duty))}
+            {d.saving > 0 && <span className="block text-[11px] text-mist">saves {money(Math.round(d.saving))}</span>}
           </span>
-        </span>
-      ),
+        )
+      },
+    },
+    {
+      label: 'FHOG (new build)',
+      render: (p) => {
+        const g = fhog(p.state, p.price)
+        return g ? <span className="tnum font-semibold text-growth">+{money(g)}</span> : '—'
+      },
     },
     { label: 'Config', render: (p) => `${p.beds} bed · ${p.baths} bath · ${p.cars} car` },
-    { label: 'Land / house', render: (p) => `${sqm(p.land_size)} / ${sqm(p.house_area)}` },
-    { label: 'Income streams', render: (p) => `${p.rooms_rentable ?? 1}` },
-    {
-      label: 'Projected weekly rent*',
-      render: (p) => (p.total_weekly_rent ? <span className="tnum font-semibold text-growth">{money(p.total_weekly_rent)}/wk</span> : '—'),
-    },
-    {
-      label: 'Projected gross yield*',
-      render: (p) => (pkgYield(p) ? <span className="tnum font-semibold text-growth">{pct(pkgYield(p))}</span> : '—'),
-    },
-    {
-      label: 'Typical management fee',
-      render: (p) => (p.package_type === 'coliving' || p.package_type === 'rooming_house' ? '15–20% (by the room)' : '8–10% (standard)'),
-    },
-    {
-      label: 'Lending treatment',
-      render: (p) =>
-        p.package_type === 'rooming_house' || (p.package_type === 'coliving' && (p.rooms_rentable ?? 0) >= (p.state === 'SA' ? 5 : 4))
-          ? 'Specialist (LVR 60–70%)'
-          : 'Standard residential',
-    },
-    { label: 'Compliance', render: (p) => getCompliance(p).classification },
+    { label: 'House size', render: (p) => `${sqm(p.house_area)} · ${toSquares(p.house_area)}` },
+    { label: 'Land / frontage', render: (p) => `${sqm(p.land_size)} · ${p.lot_width ?? '—'}m` },
+    { label: 'Study / Alfresco', render: (p) => `${p.has_study ? 'Study' : '—'} / ${p.has_alfresco ? 'Alfresco' : '—'}` },
     { label: 'Title status', render: (p) => p.title_status ?? '—' },
+    { label: 'Build time', render: (p) => (p.build_time_weeks ? `~${p.build_time_weeks} weeks` : '—') },
+    {
+      label: 'Rental appraisal',
+      render: (p) => (p.total_weekly_rent ? <span className="tnum">{money(p.total_weekly_rent)}/wk</span> : '—'),
+    },
   ]
 
   return (
     <section className="bg-paper">
       <div className="mx-auto max-w-7xl px-5 py-14 lg:px-8">
-        <p className="eyebrow">Strategy comparison</p>
+        <p className="eyebrow">Package comparison</p>
         <h1 className="display-tight mt-3 font-display text-[36px] font-semibold text-ink sm:text-[44px]">
           Compare side by side
         </h1>
         <p className="mt-3 max-w-2xl text-[15px] text-muted">
-          Not just properties — strategies. Duty treatment, lending, management costs and compliance
-          differ by structure. Select up to 3 packages from the listings.
+          Price, repayments, duty, grants, sizes and timelines — up to 3 packages at once. Add packages
+          with the compare button on any card.
         </p>
 
         {pkgs.length === 0 ? (
           <div className="mt-12 rounded-2xl border border-dashed border-line py-24 text-center">
             <p className="font-display text-xl font-semibold text-ink">Nothing selected yet</p>
             <p className="mx-auto mt-2 max-w-md text-[14px] text-muted">
-              Tap the compare button on any package card to add it here — try a co-living, a dual key
-              and a standard house &amp; land to see the strategy difference.
+              Tap the compare button on any package card to add it here — try a single storey against a
+              double storey to see the real cost difference.
             </p>
             <Link
               to="/packages"
@@ -137,8 +141,9 @@ export default function Compare() {
               </tbody>
             </table>
             <p className="mt-5 text-[11.5px] text-mist">
-              *Projected figures based on current market appraisals — not guaranteed. Duty estimates use
-              general investor rates as at August 2026; confirm with your conveyancer.
+              *Repayments assume 10% deposit, 5.60% p.a., 30-year P&amp;I. FHB duty uses 2026 VIC/SA
+              first-home-buyer rules for new builds (two-part contracts assessed on land only); subject to
+              eligibility. Rental appraisals are projections, not guarantees.
             </p>
           </div>
         )}

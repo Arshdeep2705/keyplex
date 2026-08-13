@@ -5,7 +5,7 @@ import Logo from './Logo'
 
 const links = [
   { to: '/packages', label: 'Packages' },
-  { to: '/why-co-living', label: 'Why Co-Living' },
+  { to: '/buying-guide', label: 'Buying Guide' },
   { to: '/compare', label: 'Compare' },
   { to: '/contact', label: 'Contact' },
 ]
@@ -38,7 +38,7 @@ export default function Nav() {
             to="/contact"
             className="rounded-lg bg-brass px-4 py-2 text-[14px] font-semibold text-pine transition-all hover:bg-brass-bright hover:shadow-lift"
           >
-            Book a strategy call
+            Talk to a consultant
           </Link>
         </nav>
 
@@ -68,7 +68,7 @@ export default function Nav() {
             onClick={() => setOpen(false)}
             className="mt-4 block rounded-lg bg-brass px-4 py-3 text-center text-[15px] font-semibold text-pine"
           >
-            Book a strategy call
+            Talk to a consultant
           </Link>
         </nav>
       )}

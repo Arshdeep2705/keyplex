@@ -1,22 +1,24 @@
-# Keyplex — Multi-income homes. Built to perform.
+# Keyplex — House & land, packaged in minutes.
 
-An investor-grade platform for **co-living, dual key and rooming house & land packages** across
-Victoria and South Australia. Built to beat generic listing sites on transparency, speed and trust.
+A house & land package platform for a home builder's sales operation across Victoria and South
+Australia. The admin enters the specs — beds, baths, land, price — and a complete package goes live
+in under a minute: auto-generated title, description, **parametric concept floorplan**, and a designed
+PDF brochure.
 
 **Live site:** https://arshdeep2705.github.io/keyplex/
 **Admin panel:** https://arshdeep2705.github.io/keyplex/admin
 
 ## What makes it different
 
-- **Transparent pricing** — full price + land/build split on every card; no "enquire for price".
-- **Ungated designed PDF brochures** — auto-generated per package, always up to date (4-page branded A4, not a webpage dump).
-- **Per-listing cashflow modeller** — deposit, rate, vacancy, honest 15% co-living management fees, VIC/SA stamp duty (land-only on two-part contracts), and a 10-year equity + cashflow projection chart.
-- **Compliance mapped per listing** — VIC rooming house triggers (4+ occupants), Clause 52.23 envelope checks (≤300 m² / ≤9 bedrooms / ≤12 residents), SA designated rooming house rules (5+ persons), NDIS/SDA honesty framework.
-- **Finance readiness** — flags specialist lending (60–70% LVR) before it kills a deal.
-- **SMSF-ready filtering** — single-part contract stock labelled for SMSF buyers.
-- **Strategy comparison** — co-living vs dual key vs standard H&L side by side, up to 3 packages.
-- **The 1-minute package builder** — pick a strategy type (smart defaults + preset inclusions auto-load), type a suburb and price, pick photos, hit publish. Title, slug, description, highlights, yield, duty and the brochure are generated automatically.
-- **Two-step lead capture** — contact first (never lose the lead), investor qualifiers after (SMSF status, deposit, timeframe).
+- **Auto-generated concept floorplans** — a deterministic layout engine turns beds/baths/garage/study/alfresco/storeys/area/frontage into a dimensioned architectural concept plan with room schedule, flip/mirror toggle and 4 layout variants. Rendered live on the site AND inside the PDF brochure. No builder site or portal does this.
+- **Full transparent pricing** — total fixed price + land/build split on every card; no "from $X*" games. Fixed site costs messaging throughout.
+- **Repayment-first presentation** — "From $X/week" on every card (10% deposit, 5.90% p.a., 30yr P&I), with a full calculator per listing.
+- **Government incentives engine** — 2026 VIC/SA first-home-buyer rules computed per package: $10k/$15k FHOG, VIC duty exemption ≤$600k dutiable (land only on two-part contracts), SA duty abolished for new-build FHBs, Home Guarantee Scheme 5%-deposit eligibility, and a "total government savings" figure.
+- **Two-part contract duty logic** — duty on the land component only, compared against established-home duty.
+- **Trust module** — deposit caps (5%), DBI $300k VIC / BII $250k SA insurance, statutory warranties, real title-date tracking.
+- **Designed 5-page PDF brochure** — cover, floorplan + room schedule, package summary, inclusions, finance & next steps. Regenerates automatically on every change.
+- **The 1-minute package builder** — type a design name, suburb and two prices, toggle study/alfresco, pick photos, hit publish. Everything else is generated.
+- **Two-step lead capture** — contact first (never lose the lead), buyer qualifiers after.
 
 ## Stack
 

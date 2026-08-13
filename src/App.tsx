@@ -8,7 +8,7 @@ import Home from './pages/Home'
 import Listings from './pages/Listings'
 import PackageDetail from './pages/PackageDetail'
 import Compare from './pages/Compare'
-import WhyCoLiving from './pages/WhyCoLiving'
+import BuyingGuide from './pages/BuyingGuide'
 import Contact from './pages/Contact'
 import NotFound from './pages/NotFound'
 import AdminLayout from './admin/AdminLayout'
@@ -46,7 +46,7 @@ export default function App() {
           <Route path="/packages" element={<Listings />} />
           <Route path="/packages/:slug" element={<PackageDetail />} />
           <Route path="/compare" element={<Compare />} />
-          <Route path="/why-co-living" element={<WhyCoLiving />} />
+          <Route path="/buying-guide" element={<BuyingGuide />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="*" element={<NotFound />} />
         </Route>

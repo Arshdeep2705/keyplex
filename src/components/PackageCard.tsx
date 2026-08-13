@@ -1,16 +1,15 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeftRight, Bath, BedDouble, Car, Check, KeyRound, LandPlot } from 'lucide-react'
+import { ArrowLeftRight, Bath, BedDouble, Car, Check, LandPlot, Layers } from 'lucide-react'
 import type { Pkg } from '../lib/types'
-import { TYPE_LABEL } from '../lib/types'
-import { pkgYield } from '../lib/calc'
-import { daysAgo, money, moneyShort, pct } from '../lib/format'
+import { TYPE_LABEL, toSquares } from '../lib/types'
+import { estWeeklyRepayment } from '../lib/calc'
+import { daysAgo, money, moneyShort } from '../lib/format'
 import { useCompare } from '../lib/CompareContext'
 
 export default function PackageCard({ pkg }: { pkg: Pkg }) {
   const { toggle, has } = useCompare()
-  const yieldPct = pkgYield(pkg)
   const inCompare = has(pkg.slug)
-  const streams = pkg.rooms_rentable ?? 0
+  const weekly = estWeeklyRepayment(pkg.price)
 
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-line bg-card shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-lift">
@@ -25,7 +24,11 @@ export default function PackageCard({ pkg }: { pkg: Pkg }) {
         )}
         <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-ink/70 to-transparent" />
         <span className="absolute left-3 top-3 rounded-md bg-pine/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-brass-bright backdrop-blur">
-          {TYPE_LABEL[pkg.package_type]}
+          {pkg.package_type === 'house_land'
+            ? pkg.storeys > 1
+              ? 'Double Storey'
+              : 'Single Storey'
+            : TYPE_LABEL[pkg.package_type]}
         </span>
         {pkg.status !== 'published' && (
           <span className="absolute left-3 top-11 rounded-md bg-brass px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-pine">
@@ -60,38 +63,32 @@ export default function PackageCard({ pkg }: { pkg: Pkg }) {
           {pkg.title_status}
         </p>
 
-        <div className="mt-4 flex items-center gap-4 text-[13px] text-muted">
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-muted">
           <span className="flex items-center gap-1.5"><BedDouble size={15} className="text-brass" />{pkg.beds}</span>
           <span className="flex items-center gap-1.5"><Bath size={15} className="text-brass" />{pkg.baths}</span>
           <span className="flex items-center gap-1.5"><Car size={15} className="text-brass" />{pkg.cars}</span>
           {pkg.land_size && (
             <span className="flex items-center gap-1.5"><LandPlot size={15} className="text-brass" />{pkg.land_size}m²</span>
           )}
+          {pkg.house_area && (
+            <span className="flex items-center gap-1.5"><Layers size={15} className="text-brass" />{toSquares(pkg.house_area)}</span>
+          )}
         </div>
 
-        {pkg.total_weekly_rent ? (
-          <div className="tnum mt-4 flex items-center justify-between rounded-xl bg-growth-soft px-3.5 py-2.5">
-            <span className="text-[13.5px] font-medium text-ink">
-              {money(pkg.total_weekly_rent)}/wk <span className="text-[11px] text-muted">projected*</span>
+        <div className="tnum mt-4 flex items-center justify-between rounded-xl bg-growth-soft px-3.5 py-2.5">
+          <span className="text-[13.5px] font-medium text-ink">
+            From {money(Math.round(weekly))}/wk <span className="text-[11px] text-muted">repayments*</span>
+          </span>
+          {pkg.total_weekly_rent ? (
+            <span className="rounded-md bg-pine px-2 py-0.5 text-[11.5px] font-bold text-brass-bright">
+              Rents ~{money(pkg.total_weekly_rent)}/wk
             </span>
-            <span className="rounded-md bg-growth px-2 py-0.5 text-[12.5px] font-bold text-white">
-              {pct(yieldPct)} gross
+          ) : (
+            <span className="rounded-md bg-growth px-2 py-0.5 text-[11.5px] font-bold text-white">
+              Fixed price
             </span>
-          </div>
-        ) : (
-          <div className="mt-4 rounded-xl bg-cream px-3.5 py-2.5 text-[13px] font-medium text-muted">
-            {pkg.package_type === 'ndis' ? 'Returns subject to SDA assessment' : 'Capital growth strategy'}
-          </div>
-        )}
-
-        {streams > 1 && (
-          <div className="mt-3 flex items-center gap-1.5" title={`${streams} income streams`}>
-            {Array.from({ length: Math.min(streams, 9) }).map((_, k) => (
-              <KeyRound key={k} size={13} className="text-brass" />
-            ))}
-            <span className="ml-1 text-[12px] font-medium text-muted">{streams} income streams</span>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="mt-4 flex items-end justify-between border-t border-line pt-4">
           <div>

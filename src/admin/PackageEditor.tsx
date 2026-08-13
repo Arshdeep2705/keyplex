@@ -12,88 +12,85 @@ import {
   X,
 } from 'lucide-react'
 import type { InclusionGroup, InclusionPreset, PackageType, Pkg } from '../lib/types'
-import { TYPE_LABEL } from '../lib/types'
+import { TYPE_LABEL, UI_TYPES, toSquares } from '../lib/types'
 import { fetchPresets, savePackage, uploadImage } from '../lib/data'
 import { supabase } from '../lib/supabase'
-import { cashflow, defaultCashflowInputs, dutiableValue, grossYield, stampDuty } from '../lib/calc'
-import { money, pct, slugify } from '../lib/format'
+import { dutiableValue, dutyWithConcession, estWeeklyRepayment, fhog } from '../lib/calc'
+import { generateFloorplan } from '../lib/floorplan'
+import { money, slugify } from '../lib/format'
 import PackageCard from '../components/PackageCard'
+import FloorplanSVG from '../components/FloorplanSVG'
 
-const STOCK: { url: string; kind: 'facade' | 'interior' }[] = [
+const STOCK: string[] = [
   ...[
     '1600585154340-be6161a56a0c', '1600596542815-ffad4c1539a9', '1600607687939-ce8a6c25118c',
     '1600566753190-17f0baa2a6c3', '1568605114967-8130f3a36994', '1570129477492-45c003edd2be',
     '1564013799919-ab600027ffc6', '1580587771525-78b9dba3b914', '1512917774080-9991f1c4c750',
     '1583608205776-bfd35f0d9f83', '1600047509807-ba8f99d2cdde', '1600573472592-401b489a3cdc',
-    '1600607687920-4e2a09cf159d',
-  ].map((id) => ({ url: `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1600&q=80`, kind: 'facade' as const })),
-  ...[
-    '1600585154526-990dced4db0d', '1556912167-f556f1f39fdf', '1556909114-f6e7ad7d3136',
-    '1600121848594-d8644e57abab', '1600210492486-724fe5c67fb0', '1600566752355-35792bedcfea',
-  ].map((id) => ({ url: `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1600&q=80`, kind: 'interior' as const })),
+    '1600607687920-4e2a09cf159d', '1600585154526-990dced4db0d', '1556912167-f556f1f39fdf',
+    '1556909114-f6e7ad7d3136', '1600121848594-d8644e57abab', '1600210492486-724fe5c67fb0',
+    '1600566752355-35792bedcfea',
+  ].map((id) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1600&q=80`),
 ]
 
-const TYPE_DEFAULTS: Record<PackageType, Partial<Pkg>> = {
-  coliving: { beds: 5, baths: 5, cars: 2, living_areas: 2, rooms_rentable: 5, rent_per_room: 290, land_size: 420, house_area: 240, lot_width: 14, est_capital_growth: 5, vacancy_rate: 1.2, build_time_weeks: 30, title_status: 'Titles — ready to build', contract_type: 'two_part', unit_beds: 0, unit_baths: 0 },
-  dual_key: { beds: 3, baths: 2, cars: 2, living_areas: 1, rooms_rentable: 2, rent_per_room: null as unknown as number, total_weekly_rent: 880, land_size: 400, house_area: 220, lot_width: 12.5, est_capital_growth: 5.3, vacancy_rate: 1.2, build_time_weeks: 26, title_status: 'Titles — ready to build', contract_type: 'two_part', unit_beds: 2, unit_baths: 1 },
-  house_land: { beds: 4, baths: 2, cars: 2, living_areas: 2, rooms_rentable: 1, rent_per_room: null as unknown as number, total_weekly_rent: 600, land_size: 448, house_area: 210, lot_width: 14, est_capital_growth: 5.5, vacancy_rate: 1.3, build_time_weeks: 24, title_status: 'Titles — ready to build', contract_type: 'two_part', unit_beds: 0, unit_baths: 0 },
-  rooming_house: { beds: 9, baths: 9, cars: 2, living_areas: 2, rooms_rentable: 9, rent_per_room: 265, land_size: 650, house_area: 298, lot_width: 18, est_capital_growth: 4.5, vacancy_rate: 1.6, build_time_weeks: 36, title_status: 'Design finalised', contract_type: 'single_part', unit_beds: 0, unit_baths: 0 },
-  ndis: { beds: 4, baths: 4, cars: 2, living_areas: 2, rooms_rentable: 4, rent_per_room: null as unknown as number, total_weekly_rent: null as unknown as number, land_size: 450, house_area: 242, lot_width: 14, est_capital_growth: 5, vacancy_rate: null as unknown as number, build_time_weeks: 32, title_status: 'Titles — ready to build', contract_type: 'two_part', unit_beds: 0, unit_baths: 0 },
-  dual_occupancy: { beds: 3, baths: 2, cars: 2, living_areas: 1, rooms_rentable: 2, rent_per_room: null as unknown as number, total_weekly_rent: 900, land_size: 500, house_area: 230, lot_width: 16, est_capital_growth: 5.2, vacancy_rate: 1.2, build_time_weeks: 30, title_status: 'Titles — ready to build', contract_type: 'two_part', unit_beds: 2, unit_baths: 1 },
+const TYPE_DEFAULTS: Record<string, Partial<Pkg>> = {
+  house_land: { beds: 4, baths: 2, cars: 2, living_areas: 2, storeys: 1, has_study: false, has_alfresco: true, land_size: 400, house_area: 210, lot_width: 12.5, est_capital_growth: 5.2, build_time_weeks: 26, title_status: 'Titled — ready to build', contract_type: 'two_part', unit_beds: 0, unit_baths: 0, rooms_rentable: 1 },
+  dual_occupancy: { beds: 5, baths: 3, cars: 2, living_areas: 2, storeys: 1, has_study: false, has_alfresco: true, land_size: 512, house_area: 242, lot_width: 16, est_capital_growth: 5.4, build_time_weeks: 30, title_status: 'Titled — ready to build', contract_type: 'two_part', unit_beds: 2, unit_baths: 1, rooms_rentable: 2 },
+  dual_key: { beds: 3, baths: 2, cars: 2, living_areas: 1, storeys: 1, has_study: false, has_alfresco: true, land_size: 400, house_area: 215, lot_width: 12.5, est_capital_growth: 5.3, build_time_weeks: 26, title_status: 'Titled — ready to build', contract_type: 'two_part', unit_beds: 2, unit_baths: 1, rooms_rentable: 2 },
 }
 
-function autoTitle(type: PackageType, suburb: string) {
-  return `${TYPE_LABEL[type]} Investment — ${suburb || 'Suburb'}`
+function autoTitle(f: Partial<Pkg>) {
+  const design = f.design_name?.trim()
+  const suburb = f.suburb?.trim() || 'Suburb'
+  if (f.package_type === 'dual_occupancy') return design ? `The ${design} Dual Occ — ${suburb}` : `Dual Occupancy — ${suburb}`
+  if (f.package_type === 'dual_key') return design ? `The ${design} Dual Key — ${suburb}` : `Dual Key Home — ${suburb}`
+  return design ? `The ${design} — ${suburb}` : `${f.beds ?? 4} Bedroom Home & Land — ${suburb}`
 }
 
 function autoDescription(f: Partial<Pkg>): string {
-  const t = f.package_type ?? 'coliving'
   const suburb = f.suburb || 'this growth suburb'
-  const rooms = f.rooms_rentable ?? 0
-  const rent = f.rent_per_room ?? 0
-  switch (t) {
-    case 'coliving':
-      return `Purpose-built ${f.beds}-bedroom co-living home in ${suburb}. Every resident room has its own ensuite, built-in robe, split-system and keyed smart lock — ${rooms} individual income streams under one title${rent ? `, projected at ${money(rent)}/week per room` : ''}. Designed NCC Class 1b-compliant from day one, with fire-rated separation and acoustic insulation between rooms. One vacancy of ${rooms} costs ~${Math.round(100 / Math.max(rooms, 1))}% of income, not 100%.`
-    case 'dual_key':
-      return `Two self-contained homes under one roof and one title in ${suburb}. ${f.beds}-bed main residence plus ${f.unit_beds}-bed unit, each with private entry, fire-rated separation and independent utilities provision. Two income streams on standard residential lending — no rooming house licensing required.`
-    case 'rooming_house':
-      return `Premium ${rooms}-room rooming house configuration in ${suburb}. Individually metered, ensuited rooms engineered to the edge of the compliance envelope. One vacancy costs ~${Math.round(100 / Math.max(rooms, 1))}% of income. Specialist lending applies — our broker panel handles the pathway.`
-    case 'ndis':
-      return `SDA-capable ${f.beds}-bedroom design in ${suburb}, built to SDA Design Standard v1.1. We deliberately do not advertise headline yields on SDA stock: funding attaches to the participant, not the property. We provide a location demand assessment before you commit.`
+  const design = f.design_name ? `The ${f.design_name}` : 'This home'
+  const extras = [f.has_study && 'a dedicated study', (f.living_areas ?? 1) > 1 && `${f.living_areas} living zones`, f.has_alfresco && 'an alfresco under the roofline'].filter(Boolean).join(', ')
+  switch (f.package_type) {
     case 'dual_occupancy':
-      return `Two detached dwellings on one lot in ${suburb} — live in one and rent the other, or hold both for dual income with future subdivision potential.`
+      return `Two homes, one title in ${suburb}. A ${(f.beds ?? 5) - (f.unit_beds ?? 2)}-bedroom main residence plus a self-contained ${f.unit_beds}-bedroom second dwelling — live in one and rent the other, house the extended family, or hold both. Separate metering and private yards to each, delivered turnkey with fixed site costs.`
+    case 'dual_key':
+      return `${design} pairs a ${(f.beds ?? 3)}-bedroom main residence with a self-contained ${f.unit_beds}-bedroom unit under one roof in ${suburb} — private entries, fire-rated separation and independent living for family or rental income. Full turnkey with fixed site costs.`
     default:
-      return `Quality ${f.beds}-bedroom family home and land package in ${suburb}. A strong capital-growth play in a proven corridor, delivered turnkey with fixed site costs.`
+      return `${design} brings ${f.beds} bedrooms${extras ? `, ${extras}` : ''} to a ${f.land_size ?? ''}m² block in ${suburb}${f.estate ? `'s ${f.estate} estate` : ''}. ${f.storeys && f.storeys > 1 ? 'Smart double-storey design keeps the living zones open downstairs with the bedrooms up.' : 'A wide open-plan kitchen, meals and family zone runs across the rear of the home.'} Delivered full turnkey with fixed site costs — approvals, driveway, landscaping, fencing and blinds all included in the fixed price.`
   }
 }
 
 function autoHighlights(f: Partial<Pkg>): string[] {
-  const rooms = f.rooms_rentable ?? 0
-  const rent = f.total_weekly_rent ?? 0
   const out: string[] = []
-  if (rooms > 1 && rent) out.push(`${rooms} income streams — projected ${money(rent)}/week combined`)
-  if (rooms > 1) out.push(`One vacancy = only ~${Math.round(100 / rooms)}% income impact`)
-  if (f.package_type === 'coliving' || f.package_type === 'rooming_house') out.push('Designed NCC Class 1b — no costly retrofit')
-  if (f.package_type === 'dual_key') out.push('Standard residential lending — no specialist LVR caps')
-  if (f.contract_type === 'single_part') out.push('SMSF-ready single-part contract')
-  out.push('Fixed site costs + 7-star energy rating')
+  const bits = [f.has_study && 'study', (f.living_areas ?? 1) > 1 && `${f.living_areas} living zones`, f.has_alfresco && 'alfresco'].filter(Boolean).join(' + ')
+  out.push(`${f.beds} bed / ${f.baths} bath${bits ? ` + ${bits}` : ''} on ${f.lot_width ?? '—'}m frontage`)
+  if ((f.title_status ?? '').toLowerCase().includes('titled')) out.push('Titled land — site start within weeks')
+  else if (f.title_status) out.push(f.title_status)
+  if (f.state === 'SA') out.push('SA first home buyers: $0 stamp duty + $15k grant on new builds')
+  else if (f.land_price && f.land_price <= 600_000) out.push('VIC first home buyers: $0 stamp duty (land under $600k) + $10k grant')
+  if (f.package_type === 'dual_occupancy' || f.package_type === 'dual_key') out.push('Two homes, one title — live in one, rent the other')
+  out.push('Fixed price, fixed site costs — full turnkey')
+  out.push('7-star energy rated')
   return out.slice(0, 5)
 }
 
 const emptyForm: Partial<Pkg> = {
   status: 'draft',
-  package_type: 'coliving',
+  package_type: 'house_land',
   state: 'VIC',
   suburb: '',
   title: '',
   slug: '',
+  design_name: '',
   price: 0,
+  floorplan_variant: 0,
+  energy_rating: 7,
+  builder_name: 'Partner Builder — VIC',
   highlights: [],
   inclusions: [],
   gallery: [],
-  energy_rating: 7,
-  builder_name: 'Partner Builder — VIC',
-  ...TYPE_DEFAULTS.coliving,
+  ...TYPE_DEFAULTS.house_land,
 }
 
 export default function PackageEditor() {
@@ -112,7 +109,7 @@ export default function PackageEditor() {
     fetchPresets().then((p) => {
       setPresets(p)
       if (isNew) {
-        const preset = p.find((x) => x.package_type === 'coliving')
+        const preset = p.find((x) => x.package_type === 'house_land') ?? p[0]
         if (preset) setForm((f) => ({ ...f, inclusions: preset.items }))
       }
     })
@@ -134,45 +131,53 @@ export default function PackageEditor() {
 
   const set = (patch: Partial<Pkg>) => setForm((f) => ({ ...f, ...patch }))
 
-  /* type change → smart defaults + preset inclusions + auto copy */
   function changeType(t: PackageType) {
-    const preset = presets.find((p) => p.package_type === t)
+    const preset = presets.find((p) => p.package_type === t) ?? presets.find((p) => p.package_type === 'house_land')
     setForm((f) => {
-      const next = { ...f, package_type: t, ...TYPE_DEFAULTS[t] }
+      const next = { ...f, package_type: t, ...(TYPE_DEFAULTS[t] ?? {}) }
       if (preset) next.inclusions = preset.items
-      if (!titleTouched) next.title = autoTitle(t, f.suburb ?? '')
+      if (!titleTouched) next.title = autoTitle(next)
       if (!descTouched) next.description = autoDescription(next)
       next.highlights = autoHighlights(next)
       return next
     })
   }
 
-  /* keep auto fields in sync */
+  /* keep auto copy in sync with the numbers */
   useEffect(() => {
     setForm((f) => {
       const next = { ...f }
-      const t = f.package_type as PackageType
-      if ((t === 'coliving' || t === 'rooming_house') && f.rooms_rentable && f.rent_per_room) {
-        next.total_weekly_rent = f.rooms_rentable * f.rent_per_room
-      }
-      if (!titleTouched) next.title = autoTitle(t, f.suburb ?? '')
-      next.slug = f.slug && !isNew ? f.slug : slugify(`${t}-${f.suburb ?? ''}-${f.beds ?? ''}br`)
+      if (!titleTouched) next.title = autoTitle(f)
+      if (!descTouched) next.description = autoDescription(f)
+      next.slug =
+        f.slug && !isNew
+          ? f.slug
+          : slugify(`${f.design_name || f.package_type}-${f.suburb ?? ''}`) || 'new-package'
       return next
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.suburb, form.rooms_rentable, form.rent_per_room, form.package_type, form.beds])
+  }, [form.suburb, form.design_name, form.package_type, form.beds, form.baths, form.storeys, form.has_study, form.has_alfresco, form.land_price, form.state])
 
   /* live computed metrics */
-  const yieldPct = grossYield(form.price ?? 0, form.total_weekly_rent)
-  const duty = form.price ? stampDuty(form.state ?? 'VIC', dutiableValue(form as Pkg)) : 0
-  const weeklyCf = useMemo(() => {
-    if (!form.price || !form.total_weekly_rent) return null
-    return cashflow(defaultCashflowInputs(form as Pkg)).weeklyCashflow
+  const weekly = form.price ? estWeeklyRepayment(form.price) : null
+  const dutyFhb = form.price ? dutyWithConcession(form.state ?? 'VIC', dutiableValue(form as Pkg), true) : null
+  const grant = form.price && form.state ? fhog(form.state, form.price) : 0
+
+  const plan = useMemo(() => {
+    if (!form.beds) return null
+    return generateFloorplan({
+      beds: form.package_type === 'dual_occupancy' ? (form.beds ?? 4) - (form.unit_beds ?? 0) : form.beds ?? 4,
+      baths: form.baths ?? 2,
+      cars: form.cars ?? 2,
+      living: form.living_areas ?? 1,
+      study: form.has_study ?? false,
+      alfresco: form.has_alfresco ?? true,
+      storeys: form.storeys ?? 1,
+      houseArea: form.house_area ?? 200,
+      lotWidth: form.lot_width,
+      variant: form.floorplan_variant ?? 0,
+    })
   }, [form])
-  const c5223 =
-    form.state === 'VIC' && (form.package_type === 'coliving' || form.package_type === 'rooming_house')
-      ? (form.house_area ?? 0) <= 300 && (form.beds ?? 0) <= 9 && (form.rooms_rentable ?? 0) <= 12
-      : null
 
   const previewPkg: Pkg = {
     id: form.id ?? 'preview',
@@ -180,6 +185,11 @@ export default function PackageEditor() {
     updated_at: '',
     published_at: new Date().toISOString(),
     views_count: form.views_count ?? 0,
+    design_name: form.design_name ?? null,
+    storeys: form.storeys ?? 1,
+    has_study: form.has_study ?? false,
+    has_alfresco: form.has_alfresco ?? true,
+    floorplan_variant: form.floorplan_variant ?? 0,
     postcode: form.postcode ?? null,
     estate: form.estate ?? null,
     address_hint: form.address_hint ?? null,
@@ -192,7 +202,7 @@ export default function PackageEditor() {
     living_areas: form.living_areas ?? 1,
     unit_beds: form.unit_beds ?? 0,
     unit_baths: form.unit_baths ?? 0,
-    rooms_rentable: form.rooms_rentable ?? 0,
+    rooms_rentable: form.rooms_rentable ?? 1,
     rent_per_room: form.rent_per_room ?? null,
     total_weekly_rent: form.total_weekly_rent ?? null,
     est_capital_growth: form.est_capital_growth ?? null,
@@ -210,7 +220,7 @@ export default function PackageEditor() {
     title: form.title || 'Untitled package',
     slug: form.slug || 'preview',
     status: (form.status as Pkg['status']) ?? 'draft',
-    package_type: (form.package_type as PackageType) ?? 'coliving',
+    package_type: (form.package_type as PackageType) ?? 'house_land',
     suburb: form.suburb || 'Suburb',
     state: form.state ?? 'VIC',
     price: form.price ?? 0,
@@ -230,8 +240,8 @@ export default function PackageEditor() {
     try {
       const payload: Partial<Pkg> = {
         ...form,
-        title: form.title || autoTitle(form.package_type as PackageType, form.suburb ?? ''),
-        slug: form.slug || slugify(`${form.package_type}-${form.suburb}-${form.beds}br`),
+        title: form.title || autoTitle(form),
+        slug: form.slug || slugify(`${form.design_name || form.package_type}-${form.suburb}`),
         description: form.description || autoDescription(form),
         highlights: form.highlights?.length ? form.highlights : autoHighlights(form),
       }
@@ -239,14 +249,12 @@ export default function PackageEditor() {
         payload.status = 'published'
         payload.published_at = form.published_at ?? new Date().toISOString()
       }
-      delete (payload as Record<string, unknown>).kp_packages
       try {
         const saved = await savePackage(payload)
         setForm(saved)
         setSavedAt(new Date().toLocaleTimeString())
         if (isNew) navigate(`/admin/packages/${saved.id}`, { replace: true })
       } catch (e: unknown) {
-        // slug collision → retry once with a suffix
         if (String((e as Error).message ?? '').includes('duplicate')) {
           payload.slug = `${payload.slug}-${Math.floor(Math.random() * 900 + 100)}`
           const saved = await savePackage(payload)
@@ -303,7 +311,6 @@ export default function PackageEditor() {
     })
   }
 
-  /* inclusions editing */
   function setGroup(i: number, patch: Partial<InclusionGroup>) {
     setForm((f) => {
       const groups = [...(f.inclusions ?? [])]
@@ -313,9 +320,13 @@ export default function PackageEditor() {
   }
 
   const num = (v: string) => (v === '' ? null : Number(v))
+  const toggleCls = (active: boolean) =>
+    `rounded-lg border px-4 py-2.5 text-[13.5px] font-semibold transition-colors ${
+      active ? 'border-pine bg-pine text-paper' : 'border-line text-muted hover:border-brass'
+    }`
 
   return (
-    <div className="mx-auto max-w-[1400px]">
+    <div className="mx-auto max-w-[1440px]">
       <button
         onClick={() => navigate('/admin/packages')}
         className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted hover:text-ink"
@@ -359,32 +370,49 @@ export default function PackageEditor() {
       </div>
       {error && <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2.5 text-[13px] font-medium text-danger">{error}</p>}
 
-      <div className="mt-6 grid gap-8 xl:grid-cols-[1fr_400px]">
+      <div className="mt-6 grid gap-8 xl:grid-cols-[1fr_430px]">
         {/* ————— FORM ————— */}
         <div className="space-y-6">
-          {/* 1 · type */}
+          {/* 1 · type + design */}
           <section className="rounded-2xl border border-line bg-card p-6">
-            <p className="field-label">1 · Strategy type — sets smart defaults + inclusions</p>
+            <p className="field-label">1 · Package type &amp; design</p>
             <div className="flex flex-wrap gap-2">
-              {(Object.keys(TYPE_LABEL) as PackageType[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => changeType(t)}
-                  className={`rounded-lg border px-4 py-2.5 text-[13.5px] font-semibold transition-colors ${
-                    form.package_type === t
-                      ? 'border-pine bg-pine text-paper'
-                      : 'border-line text-muted hover:border-brass'
-                  }`}
-                >
+              {UI_TYPES.map((t) => (
+                <button key={t} onClick={() => changeType(t)} className={toggleCls(form.package_type === t)}>
                   {TYPE_LABEL[t]}
                 </button>
               ))}
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div>
+                <label className="field-label">Design name</label>
+                <input
+                  className="field"
+                  value={form.design_name ?? ''}
+                  onChange={(e) => set({ design_name: e.target.value })}
+                  placeholder="Aspen 24"
+                />
+              </div>
+              <div>
+                <label className="field-label">Storeys</label>
+                <div className="flex gap-2">
+                  <button onClick={() => set({ storeys: 1 })} className={toggleCls(form.storeys === 1)}>Single</button>
+                  <button onClick={() => set({ storeys: 2 })} className={toggleCls(form.storeys === 2)}>Double</button>
+                </div>
+              </div>
+              <div>
+                <label className="field-label">Extras</label>
+                <div className="flex gap-2">
+                  <button onClick={() => set({ has_study: !form.has_study })} className={toggleCls(!!form.has_study)}>Study</button>
+                  <button onClick={() => set({ has_alfresco: !form.has_alfresco })} className={toggleCls(!!form.has_alfresco)}>Alfresco</button>
+                </div>
+              </div>
             </div>
           </section>
 
           {/* 2 · location */}
           <section className="rounded-2xl border border-line bg-card p-6">
-            <p className="field-label">2 · Location</p>
+            <p className="field-label">2 · Land &amp; location</p>
             <div className="grid gap-4 sm:grid-cols-4">
               <div className="sm:col-span-2">
                 <label className="field-label">Suburb *</label>
@@ -405,19 +433,31 @@ export default function PackageEditor() {
                 <input className="field" value={form.estate ?? ''} onChange={(e) => set({ estate: e.target.value })} placeholder="Ramlegh Springs" />
               </div>
               <div className="sm:col-span-2">
-                <label className="field-label">Lot / address hint</label>
+                <label className="field-label">Lot / address</label>
                 <input className="field" value={form.address_hint ?? ''} onChange={(e) => set({ address_hint: e.target.value })} placeholder="Lot 1214, Ramlegh Springs Estate" />
+              </div>
+              <div>
+                <label className="field-label">Land size (m²)</label>
+                <input type="number" className="field tnum" value={form.land_size ?? ''} onChange={(e) => set({ land_size: num(e.target.value) })} />
+              </div>
+              <div>
+                <label className="field-label">Frontage (m)</label>
+                <input type="number" step="0.5" className="field tnum" value={form.lot_width ?? ''} onChange={(e) => set({ lot_width: num(e.target.value) })} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="field-label">Title status</label>
+                <input className="field" value={form.title_status ?? ''} onChange={(e) => set({ title_status: e.target.value })} placeholder="Titled — ready to build / Titles Q1 2027" />
               </div>
             </div>
           </section>
 
-          {/* 3 · numbers */}
+          {/* 3 · price */}
           <section className="rounded-2xl border border-line bg-card p-6">
-            <p className="field-label">3 · Price &amp; land</p>
+            <p className="field-label">3 · Pricing</p>
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <label className="field-label">Total price ($) *</label>
-                <input type="number" className="field tnum" value={form.price || ''} onChange={(e) => set({ price: Number(e.target.value) })} placeholder="895000" />
+                <label className="field-label">Total fixed price ($) *</label>
+                <input type="number" className="field tnum" value={form.price || ''} onChange={(e) => set({ price: Number(e.target.value) })} placeholder="769000" />
               </div>
               <div>
                 <label className="field-label">Land component ($)</label>
@@ -429,46 +469,34 @@ export default function PackageEditor() {
                     const land = num(e.target.value)
                     set({ land_price: land, build_price: land && form.price ? form.price - land : form.build_price })
                   }}
-                  placeholder="405000"
+                  placeholder="385000"
                 />
               </div>
               <div>
                 <label className="field-label">Build component ($)</label>
-                <input type="number" className="field tnum" value={form.build_price ?? ''} onChange={(e) => set({ build_price: num(e.target.value) })} placeholder="490000" />
-              </div>
-              <div>
-                <label className="field-label">Land size (m²)</label>
-                <input type="number" className="field tnum" value={form.land_size ?? ''} onChange={(e) => set({ land_size: num(e.target.value) })} />
-              </div>
-              <div>
-                <label className="field-label">House area (m²)</label>
-                <input type="number" className="field tnum" value={form.house_area ?? ''} onChange={(e) => set({ house_area: num(e.target.value) })} />
-              </div>
-              <div>
-                <label className="field-label">Lot width (m)</label>
-                <input type="number" step="0.5" className="field tnum" value={form.lot_width ?? ''} onChange={(e) => set({ lot_width: num(e.target.value) })} />
+                <input type="number" className="field tnum" value={form.build_price ?? ''} onChange={(e) => set({ build_price: num(e.target.value) })} placeholder="384000" />
               </div>
               <div>
                 <label className="field-label">Contract</label>
                 <select className="field" value={form.contract_type} onChange={(e) => set({ contract_type: e.target.value as Pkg['contract_type'] })}>
                   <option value="two_part">Two-part H&amp;L (duty on land only)</option>
-                  <option value="single_part">Single-part (SMSF-ready)</option>
+                  <option value="single_part">Single contract</option>
                 </select>
-              </div>
-              <div>
-                <label className="field-label">Title status</label>
-                <input className="field" value={form.title_status ?? ''} onChange={(e) => set({ title_status: e.target.value })} placeholder="Titles — ready to build" />
               </div>
               <div>
                 <label className="field-label">Build time (weeks)</label>
                 <input type="number" className="field tnum" value={form.build_time_weeks ?? ''} onChange={(e) => set({ build_time_weeks: num(e.target.value) })} />
               </div>
+              <div>
+                <label className="field-label">Rental appraisal ($/wk, optional)</label>
+                <input type="number" className="field tnum" value={form.total_weekly_rent ?? ''} onChange={(e) => set({ total_weekly_rent: num(e.target.value) })} placeholder="For investors" />
+              </div>
             </div>
           </section>
 
-          {/* 4 · configuration */}
+          {/* 4 · home configuration */}
           <section className="rounded-2xl border border-line bg-card p-6">
-            <p className="field-label">4 · Configuration &amp; income</p>
+            <p className="field-label">4 · Home configuration — drives the floorplan</p>
             <div className="grid gap-4 sm:grid-cols-4">
               <div>
                 <label className="field-label">Beds</label>
@@ -483,8 +511,13 @@ export default function PackageEditor() {
                 <input type="number" className="field tnum" value={form.cars ?? ''} onChange={(e) => set({ cars: Number(e.target.value) })} />
               </div>
               <div>
-                <label className="field-label">Income streams</label>
-                <input type="number" className="field tnum" value={form.rooms_rentable ?? ''} onChange={(e) => set({ rooms_rentable: Number(e.target.value) })} />
+                <label className="field-label">Living areas</label>
+                <input type="number" className="field tnum" value={form.living_areas ?? ''} onChange={(e) => set({ living_areas: Number(e.target.value) })} />
+              </div>
+              <div>
+                <label className="field-label">House area (m²)</label>
+                <input type="number" className="field tnum" value={form.house_area ?? ''} onChange={(e) => set({ house_area: num(e.target.value) })} />
+                <p className="tnum mt-1 text-[11px] text-mist">{form.house_area ? `= ${toSquares(form.house_area)}` : ''}</p>
               </div>
               {(form.package_type === 'dual_key' || form.package_type === 'dual_occupancy') && (
                 <>
@@ -499,20 +532,20 @@ export default function PackageEditor() {
                 </>
               )}
               <div>
-                <label className="field-label">Rent per room ($/wk)</label>
-                <input type="number" className="field tnum" value={form.rent_per_room ?? ''} onChange={(e) => set({ rent_per_room: num(e.target.value) })} placeholder="290" />
-              </div>
-              <div>
-                <label className="field-label">Total rent ($/wk)</label>
-                <input type="number" className="field tnum" value={form.total_weekly_rent ?? ''} onChange={(e) => set({ total_weekly_rent: num(e.target.value) })} />
-              </div>
-              <div>
-                <label className="field-label">Capital growth (%)</label>
-                <input type="number" step="0.1" className="field tnum" value={form.est_capital_growth ?? ''} onChange={(e) => set({ est_capital_growth: num(e.target.value) })} />
-              </div>
-              <div>
-                <label className="field-label">Vacancy rate (%)</label>
-                <input type="number" step="0.1" className="field tnum" value={form.vacancy_rate ?? ''} onChange={(e) => set({ vacancy_rate: num(e.target.value) })} />
+                <label className="field-label">Plan layout</label>
+                <div className="flex gap-1.5">
+                  {[0, 1, 2, 3].map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => set({ floorplan_variant: v })}
+                      className={`rounded-lg border px-3 py-2 text-[13px] font-semibold transition-colors ${
+                        form.floorplan_variant === v ? 'border-brass bg-brass text-pine' : 'border-line text-muted hover:border-brass'
+                      }`}
+                    >
+                      {String.fromCharCode(65 + v)}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </section>
@@ -523,7 +556,7 @@ export default function PackageEditor() {
               <p className="field-label !mb-0">5 · Media — click to select, first pick becomes the hero</p>
               <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-line px-3.5 py-2 text-[13px] font-semibold text-ink transition-colors hover:border-brass">
                 {busy === 'upload' ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                Upload photos
+                Upload renders
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleUpload} />
               </label>
             </div>
@@ -557,7 +590,7 @@ export default function PackageEditor() {
 
             <p className="mt-5 text-[12px] font-semibold uppercase tracking-[0.08em] text-mist">Quick-pick stock imagery</p>
             <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
-              {STOCK.map(({ url }) => {
+              {STOCK.map((url) => {
                 const selected = form.gallery?.includes(url)
                 return (
                   <button key={url} onClick={() => toggleStock(url)} className="relative overflow-hidden rounded-md">
@@ -598,7 +631,7 @@ export default function PackageEditor() {
                     }}
                     className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold text-brass hover:underline"
                   >
-                    <Sparkles size={12} /> Rewrite from numbers
+                    <Sparkles size={12} /> Rewrite from specs
                   </button>
                 </div>
                 <textarea
@@ -679,41 +712,44 @@ export default function PackageEditor() {
         </div>
 
         {/* ————— LIVE PREVIEW ————— */}
-        <div className="xl:sticky xl:top-8 xl:self-start">
-          <p className="field-label">Live preview</p>
-          <div className="pointer-events-none">
-            <PackageCard pkg={previewPkg} />
+        <div className="space-y-5 xl:sticky xl:top-8 xl:self-start">
+          <div>
+            <p className="field-label">Live card preview</p>
+            <div className="pointer-events-none">
+              <PackageCard pkg={previewPkg} />
+            </div>
           </div>
 
-          <div className="mt-5 space-y-2.5 rounded-2xl border border-line bg-card p-5">
+          <div className="space-y-2.5 rounded-2xl border border-line bg-card p-5">
             <p className="field-label !mb-1">Computed as you type</p>
             <div className="flex items-center justify-between text-[13.5px]">
-              <span className="text-muted">Gross yield</span>
-              <span className="tnum font-bold text-growth">{yieldPct ? pct(yieldPct) : '—'}</span>
+              <span className="text-muted">Est. repayments (10% dep, 5.90%)</span>
+              <span className="tnum font-bold text-growth">{weekly ? `${money(Math.round(weekly))}/wk` : '—'}</span>
             </div>
             <div className="flex items-center justify-between text-[13.5px]">
-              <span className="text-muted">Est. weekly cashflow (defaults)</span>
-              <span className={`tnum font-bold ${weeklyCf != null && weeklyCf >= 0 ? 'text-growth' : 'text-danger'}`}>
-                {weeklyCf != null ? `${weeklyCf >= 0 ? '+' : ''}${money(Math.round(weeklyCf))}` : '—'}
+              <span className="text-muted">FHB stamp duty ({form.state})</span>
+              <span className="tnum font-bold text-ink">
+                {dutyFhb ? (dutyFhb.duty === 0 ? <span className="text-growth">$0</span> : money(Math.round(dutyFhb.duty))) : '—'}
               </span>
             </div>
             <div className="flex items-center justify-between text-[13.5px]">
-              <span className="text-muted">Transfer duty ({form.contract_type === 'two_part' && form.land_price ? 'land only' : 'full price'})</span>
-              <span className="tnum font-bold text-ink">{duty ? money(Math.round(duty)) : '—'}</span>
+              <span className="text-muted">Total govt savings (FHB)</span>
+              <span className="tnum font-bold text-growth">
+                {dutyFhb ? money(Math.round(dutyFhb.saving + grant)) : '—'}
+              </span>
             </div>
-            {c5223 !== null && (
-              <div className="flex items-center justify-between text-[13.5px]">
-                <span className="text-muted">VIC Clause 52.23 exemption</span>
-                <span className={`font-bold ${c5223 ? 'text-growth' : 'text-danger'}`}>
-                  {c5223 ? '✓ Inside envelope' : '✗ Permit required'}
-                </span>
-              </div>
-            )}
             <p className="pt-1 text-[11px] leading-relaxed text-mist">
-              Yield, duty, compliance checks and the brochure regenerate automatically — publish when the
-              preview looks right.
+              Repayments, duty, grants, the concept floorplan and the brochure all regenerate
+              automatically — publish when it looks right.
             </p>
           </div>
+
+          {plan && (
+            <div>
+              <p className="field-label">Live floorplan preview</p>
+              <FloorplanSVG plan={plan} />
+            </div>
+          )}
         </div>
       </div>
     </div>

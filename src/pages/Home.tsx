@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
 import {
@@ -7,123 +7,88 @@ import {
   Calculator,
   ChevronDown,
   FileText,
-  KeyRound,
-  ScrollText,
+  Landmark,
+  PencilRuler,
   ShieldCheck,
   Timer,
-  TrendingUp,
 } from 'lucide-react'
 import type { Pkg } from '../lib/types'
 import { fetchPublished } from '../lib/data'
+import { generateFloorplan } from '../lib/floorplan'
 import PackageCard from '../components/PackageCard'
+import FloorplanSVG from '../components/FloorplanSVG'
 import Reveal from '../components/Reveal'
 import LeadForm from '../components/LeadForm'
 
-/* count-up that starts when visible */
-function useCountUp(target: number, duration = 1400) {
-  const [value, setValue] = useState(0)
-  const ref = useRef<HTMLSpanElement>(null)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return
-        obs.disconnect()
-        const start = performance.now()
-        const tick = (now: number) => {
-          const p = Math.min((now - start) / duration, 1)
-          setValue(target * (1 - Math.pow(1 - p, 3)))
-          if (p < 1) requestAnimationFrame(tick)
-        }
-        requestAnimationFrame(tick)
-      },
-      { threshold: 0.4 },
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [target, duration])
-  return { ref, value }
-}
+/* interactive hero demo: specs in → concept plan out */
+function PlanDemo() {
+  const [beds, setBeds] = useState(4)
+  const [storeys, setStoreys] = useState(1)
+  const [study, setStudy] = useState(true)
 
-function Stat({ value, suffix, label, decimals = 0 }: { value: number; suffix: string; label: string; decimals?: number }) {
-  const { ref, value: v } = useCountUp(value)
-  return (
-    <div>
-      <p className="tnum font-display text-[34px] font-semibold leading-none text-brass-bright">
-        <span ref={ref}>{v.toFixed(decimals)}</span>
-        {suffix}
-      </p>
-      <p className="mt-2 text-[13px] leading-snug text-paper/60">{label}</p>
-    </div>
+  const plan = useMemo(
+    () =>
+      generateFloorplan({
+        beds,
+        baths: 2,
+        cars: 2,
+        living: 2,
+        study,
+        alfresco: true,
+        storeys,
+        houseArea: storeys > 1 ? 250 : 150 + beds * 18,
+        lotWidth: 12.5,
+        variant: 0,
+      }),
+    [beds, storeys, study],
   )
-}
 
-/* animated per-room income stack — the signature hero piece */
-function IncomeStack() {
-  const rooms = [
-    { label: 'Room 1', rent: 300 },
-    { label: 'Room 2', rent: 300 },
-    { label: 'Room 3', rent: 300 },
-    { label: 'Room 4', rent: 300 },
-    { label: 'Room 5', rent: 300 },
-  ]
+  const chip = (active: boolean) =>
+    `rounded-lg border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+      active ? 'border-brass bg-brass text-pine' : 'border-line-dark/70 text-paper/75 hover:border-brass'
+    }`
+
   return (
-    <div className="relative rounded-2xl border border-line-dark/70 bg-pine-soft/80 p-6 shadow-lift backdrop-blur">
-      <p className="eyebrow">One co-living home</p>
-      <div className="mt-4 space-y-2.5">
-        {rooms.map((r, i) => (
-          <motion.div
-            key={r.label}
-            initial={{ opacity: 0, x: -18 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.55 + i * 0.14, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="flex items-center justify-between rounded-lg border border-line-dark/60 bg-pine px-4 py-2.5"
-          >
-            <span className="flex items-center gap-2.5 text-[13.5px] text-paper/85">
-              <KeyRound size={14} className="text-brass-bright" />
-              {r.label} · ensuite
-            </span>
-            <span className="tnum text-[13.5px] font-semibold text-paper">${r.rent}/wk</span>
-          </motion.div>
+    <div className="rounded-2xl border border-line-dark/70 bg-pine-soft/70 p-4 shadow-lift backdrop-blur">
+      <div className="flex flex-wrap items-center gap-2 px-1 pb-3">
+        <span className="eyebrow mr-1">Try it live</span>
+        {[3, 4, 5].map((b) => (
+          <button key={b} onClick={() => setBeds(b)} className={chip(beds === b)}>
+            {b} bed
+          </button>
         ))}
+        <button onClick={() => setStoreys(storeys === 1 ? 2 : 1)} className={chip(storeys === 2)}>
+          Double storey
+        </button>
+        <button onClick={() => setStudy(!study)} className={chip(study)}>
+          Study
+        </button>
       </div>
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.35, duration: 0.5 }}
-        className="tnum mt-4 flex items-center justify-between rounded-xl bg-brass px-4 py-3.5"
-      >
-        <span className="text-[14px] font-bold text-pine">Combined income</span>
-        <span className="font-display text-[22px] font-bold text-pine">$1,500/wk*</span>
-      </motion.div>
-      <p className="mt-3 text-[11px] text-paper/40">
-        *Illustrative example. Projected, not guaranteed.
-      </p>
+      <FloorplanSVG plan={plan} />
     </div>
   )
 }
 
 const faqs = [
   {
-    q: 'What exactly is a co-living investment?',
-    a: 'A purpose-built home where each resident rents a private ensuited room on an individual agreement, while sharing kitchen and living spaces. You collect multiple rents from one property on one title — typically 7–9% gross yields versus 4–5% for a standard rental.',
+    q: 'Is the price really fixed?',
+    a: 'Yes — every Keyplex package is full turnkey with fixed site costs written into the contract: approvals, permits, driveway, landscaping, fencing, blinds and flooring included. The price on the listing is the price you contract at, subject only to land availability.',
   },
   {
-    q: 'Is this legal? What about rooming house rules?',
-    a: 'Yes — when built and operated correctly. In Victoria, 4+ unrelated paying occupants triggers rooming house registration, an operator licence and minimum standards; in SA the registration threshold is 5+ persons. Every Keyplex listing shows its exact compliance pathway, and our designs are built NCC Class 1b-compliant from day one.',
+    q: 'How accurate are the floorplans?',
+    a: 'The plans on each listing are auto-generated concept plans built from the real specifications — room counts, house area and lot width. They show you the layout logic and room sizes instantly. Final working drawings are prepared by the builder before contract and may differ in detail.',
   },
   {
-    q: 'Will the bank lend on a co-living property?',
-    a: "This is the question most sellers dodge. Major banks often treat rooming-house-configured stock as 'specialised use' — LVRs of 60–70% and discounted per-room income are common. Dual key homes avoid this entirely, and our broker panel arranges co-living-friendly lenders for the rest. We put this on the table before you commit, not after.",
+    q: 'What can first home buyers get in 2026?',
+    a: 'In Victoria: a $10,000 First Home Owner Grant on new homes plus a full stamp duty exemption when the dutiable value is under $600,000 — and on a two-part house & land contract, duty applies to the land only, so most of our VIC packages qualify. In South Australia: a $15,000 grant and no stamp duty at all for eligible buyers building new. Every listing calculates this for you.',
   },
   {
-    q: 'What management fees should I expect?',
-    a: 'Honest answer: 15–20% for co-living (versus 8–10% standard) because by-the-room management is more work. Our calculators default to 15% so the cashflow you see is realistic — many competitors quote yields with standard fees, which overstates returns.',
+    q: 'How long does a build take?',
+    a: 'Each listing shows its real build time — typically 22–32 weeks depending on the design — plus the land title status, which we track weekly. Titled lots can start site works within weeks of contract.',
   },
   {
-    q: 'What if a room sits empty?',
-    a: 'That is the structural advantage: one empty room in a 5-room home costs ~20% of income, not 100% like a vacant standard rental. National vacancy is ~1.7% and room-by-room demand in growth corridors remains deep.',
+    q: 'What protects me if something goes wrong?',
+    a: 'Builds are covered by Domestic Building Insurance (VIC) or Building Indemnity Insurance (SA) plus statutory structural warranties. Deposits are capped by law, and progress payments follow the fixed schedule in your building contract.',
   },
 ]
 
@@ -157,7 +122,7 @@ function Faq() {
 export default function Home() {
   const [featured, setFeatured] = useState<Pkg[]>([])
   useEffect(() => {
-    document.title = 'Keyplex — Multi-income homes. Built to perform.'
+    document.title = 'Keyplex — House & land, packaged in minutes.'
     fetchPublished().then((p) => setFeatured(p.slice(0, 3))).catch(() => {})
   }, [])
 
@@ -169,7 +134,7 @@ export default function Home() {
           className="pointer-events-none absolute -right-40 -top-40 h-[520px] w-[520px] rounded-full opacity-25"
           style={{ background: 'radial-gradient(circle, #CBA76F 0%, transparent 65%)' }}
         />
-        <div className="relative mx-auto grid max-w-7xl gap-14 px-5 pb-20 pt-16 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:px-8 lg:pb-28 lg:pt-24">
+        <div className="relative mx-auto grid max-w-7xl gap-14 px-5 pb-20 pt-16 lg:grid-cols-[1fr_1fr] lg:items-center lg:px-8 lg:pb-24 lg:pt-20">
           <div>
             <motion.p
               initial={{ opacity: 0, y: 14 }}
@@ -177,17 +142,17 @@ export default function Home() {
               transition={{ duration: 0.6 }}
               className="eyebrow"
             >
-              Property investment, multiplied
+              House &amp; land, done properly
             </motion.p>
             <motion.h1
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.1 }}
-              className="display-tight mt-5 font-display text-[44px] font-semibold leading-[1.05] sm:text-[58px] lg:text-[64px]"
+              className="display-tight mt-5 font-display text-[42px] font-semibold leading-[1.06] sm:text-[54px] lg:text-[58px]"
             >
-              One address.
+              Pick your block.
               <br />
-              <em className="font-medium text-brass-bright">Five incomes.</em>
+              <em className="font-medium text-brass-bright">See your home. Instantly.</em>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 18 }}
@@ -195,9 +160,9 @@ export default function Home() {
               transition={{ duration: 0.7, delay: 0.22 }}
               className="mt-6 max-w-xl text-[16.5px] leading-relaxed text-paper/70"
             >
-              Co-living, dual key and rooming house &amp; land packages across Victoria and South
-              Australia — with transparent pricing, honest yield modelling and the compliance pathway
-              mapped on every single listing. No gatekeeping, no mystery numbers.
+              Fixed-price house &amp; land packages across Victoria and South Australia — every listing
+              with the full price, a live concept floorplan, a designed brochure and your repayments
+              calculated. No "contact us for pricing." Ever.
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 18 }}
@@ -213,10 +178,10 @@ export default function Home() {
                 <ArrowRight size={17} className="transition-transform group-hover:translate-x-1" />
               </Link>
               <Link
-                to="/why-co-living"
+                to="/buying-guide"
                 className="rounded-lg border border-paper/25 px-6 py-3.5 text-[15px] font-semibold text-paper transition-colors hover:border-brass-bright hover:text-brass-bright"
               >
-                How co-living works
+                First home buyer guide
               </Link>
             </motion.div>
 
@@ -224,63 +189,76 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.8, delay: 0.55 }}
-              className="mt-14 grid max-w-lg grid-cols-3 gap-8 border-t border-line-dark/60 pt-8"
+              className="mt-12 grid max-w-lg grid-cols-3 gap-8 border-t border-line-dark/60 pt-8"
             >
-              <Stat value={9} suffix="%" label="gross yields, projected*" />
-              <Stat value={4} suffix="×" label="rental income vs standard" />
-              <Stat value={2} suffix=" states" label="VIC + SA growth corridors" />
+              <div>
+                <p className="tnum font-display text-[30px] font-semibold leading-none text-brass-bright">$0</p>
+                <p className="mt-2 text-[13px] leading-snug text-paper/60">stamp duty for most FHBs on our packages*</p>
+              </div>
+              <div>
+                <p className="tnum font-display text-[30px] font-semibold leading-none text-brass-bright">100%</p>
+                <p className="mt-2 text-[13px] leading-snug text-paper/60">of listings show the full fixed price</p>
+              </div>
+              <div>
+                <p className="tnum font-display text-[30px] font-semibold leading-none text-brass-bright">7★</p>
+                <p className="mt-2 text-[13px] leading-snug text-paper/60">energy rating on every home</p>
+              </div>
             </motion.div>
           </div>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
+            initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.4 }}
           >
-            <IncomeStack />
+            <PlanDemo />
           </motion.div>
         </div>
       </section>
 
-      {/* ——— YIELD GAP ——— */}
+      {/* ——— DUTY ON LAND ONLY ——— */}
       <section className="border-b border-line bg-paper">
         <div className="mx-auto max-w-7xl px-5 py-20 lg:px-8">
           <Reveal>
-            <p className="eyebrow">The yield gap</p>
+            <p className="eyebrow">The house &amp; land advantage</p>
             <h2 className="display-tight mt-3 max-w-2xl font-display text-[32px] font-semibold leading-tight text-ink sm:text-[38px]">
-              Standard rentals average ~4%. Purpose-built multi-income homes project 7–9%.*
+              Buy the package, pay duty on the land only.
             </h2>
-          </Reveal>
-          <div className="mt-10 max-w-3xl space-y-5">
-            {[
-              { label: 'Standard house & land', pct: 4.2, width: 42, cls: 'bg-mist' },
-              { label: 'Dual key home', pct: 6.5, width: 65, cls: 'bg-brass' },
-              { label: 'Co-living (5 rooms)', pct: 8.8, width: 88, cls: 'bg-growth' },
-            ].map((row, i) => (
-              <Reveal key={row.label} delay={i * 0.12}>
-                <div className="flex items-center gap-4">
-                  <span className="w-44 shrink-0 text-[13.5px] font-medium text-muted">{row.label}</span>
-                  <div className="h-9 flex-1 overflow-hidden rounded-lg bg-cream">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      whileInView={{ width: `${row.width}%` }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 1, delay: 0.2 + i * 0.12, ease: [0.22, 1, 0.36, 1] }}
-                      className={`flex h-full items-center justify-end rounded-lg px-3 ${row.cls}`}
-                    >
-                      <span className="tnum text-[13px] font-bold text-white">{row.pct}%</span>
-                    </motion.div>
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-          <Reveal delay={0.3}>
-            <p className="mt-6 max-w-3xl text-[12px] text-mist">
-              *Projected gross yields on current Keyplex packages, based on market rent appraisals —
-              not guaranteed. Standard figure: national average ~3.6–4.7% (2026). Run any package
-              through the on-page calculator with your own assumptions.
+            <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-muted">
+              On a two-part house &amp; land contract, stamp duty is assessed on the land — not the
+              finished home. On a typical $769,000 package with $385,000 land, that's the difference
+              between duty on $769k and duty on $385k. First home buyers under the VIC $600k threshold
+              pay <strong className="text-ink">nothing at all</strong> — and SA has abolished it entirely
+              for new-build FHBs.
             </p>
+          </Reveal>
+          <Reveal delay={0.15}>
+            <div className="mt-10 max-w-3xl rounded-2xl border border-line bg-card p-6">
+              <div className="flex h-12 overflow-hidden rounded-lg">
+                <motion.div
+                  initial={{ width: 0 }}
+                  whileInView={{ width: '50%' }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+                  className="flex items-center justify-center bg-brass text-[13px] font-bold text-pine"
+                >
+                  Land $385k — duty applies
+                </motion.div>
+                <motion.div
+                  initial={{ width: 0 }}
+                  whileInView={{ width: '50%' }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.9, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                  className="flex items-center justify-center bg-pine text-[13px] font-bold text-paper"
+                >
+                  Build $384k — duty free
+                </motion.div>
+              </div>
+              <p className="tnum mt-4 text-[13px] text-muted">
+                Established home at $769k: ≈ $41,240 duty · This package (investor): ≈ $18,170 ·{' '}
+                <span className="font-semibold text-growth">First home buyer: $0</span>
+              </p>
+            </div>
           </Reveal>
         </div>
       </section>
@@ -319,21 +297,21 @@ export default function Home() {
           <Reveal>
             <p className="eyebrow">Why Keyplex</p>
             <h2 className="display-tight mt-3 max-w-2xl font-display text-[32px] font-semibold leading-tight sm:text-[38px]">
-              Everything on the table. <em className="text-brass-bright">Before</em> you commit.
+              Everything on the table. <em className="text-brass-bright">Before</em> the sales office.
             </h2>
             <p className="mt-4 max-w-2xl text-[15.5px] leading-relaxed text-paper/65">
-              Most operators in this space hide prices behind discovery calls and quote yields with
-              fantasy fees. We built Keyplex to do the opposite.
+              Most builder sites hide prices, bury site costs and make you book an appointment to see a
+              floorplan. We built Keyplex to do the opposite.
             </p>
           </Reveal>
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { icon: FileText, title: 'Transparent pricing', body: 'Full price, land + build split, and an ungated designed brochure on every package. No "enquire for price".' },
-              { icon: Calculator, title: 'Run your own numbers', body: 'Every listing has a live cashflow modeller with honest defaults — 15% co-living management, real vacancy allowances, your interest rate.' },
-              { icon: ShieldCheck, title: 'Compliance, mapped', body: 'VIC and SA rooming house rules productized per listing: registration layers, Clause 52.23 checks, operator licensing — verified and dated.' },
-              { icon: BadgeCheck, title: 'Finance readiness', body: 'We tell you upfront when specialist lending applies (60–70% LVRs on rooming stock) and arrange co-living-friendly lenders.' },
-              { icon: KeyRound, title: 'SMSF-ready stock', body: 'Single-part contract packages flagged clearly — because SMSF buyers generally can\'t borrow for construction under LRBA rules.' },
-              { icon: Timer, title: 'Minutes, not days', body: 'Enquiries route straight to a strategist. We aim to call back within minutes during business hours — because speed matters.' },
+              { icon: FileText, title: 'Full transparent pricing', body: 'Total price with the land + build split on every card, and fixed site costs in the contract. No "from $XXX*" asterisk games.' },
+              { icon: PencilRuler, title: 'Instant concept floorplans', body: 'Every package generates its floorplan live from the real specs — room sizes, dimensions and a room schedule, on the page and in the brochure.' },
+              { icon: Calculator, title: 'Your repayments, calculated', body: 'Deposit, rate, term, first-home-buyer duty concessions and grants — every listing shows what it actually costs per week.' },
+              { icon: Landmark, title: 'Grants & duty, mapped', body: '2026 VIC and SA first home buyer rules built into every listing: FHOG, duty exemptions, and the land-only duty advantage of two-part contracts.' },
+              { icon: ShieldCheck, title: 'Certainty in writing', body: 'Approvals included, 7-star energy standard, builder insurance and statutory warranties spelled out per state.' },
+              { icon: Timer, title: 'Real title dates', body: 'Land status tracked weekly — titled, under construction or forecast quarter. No stale listings for lots that sold months ago.' },
             ].map((f, i) => (
               <Reveal key={f.title} delay={i * 0.08}>
                 <div className="h-full rounded-2xl border border-line-dark/60 bg-pine-soft/60 p-6 transition-colors hover:border-brass/50">
@@ -347,21 +325,21 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ——— HOW IT WORKS ——— */}
+      {/* ——— PROCESS ——— */}
       <section className="bg-paper">
         <div className="mx-auto max-w-7xl px-5 py-24 lg:px-8">
           <Reveal>
             <p className="eyebrow">The process</p>
             <h2 className="display-tight mt-3 font-display text-[32px] font-semibold text-ink sm:text-[38px]">
-              From strategy call to rent day
+              From browsing to keys
             </h2>
           </Reveal>
           <div className="mt-12 grid gap-8 md:grid-cols-4">
             {[
-              { n: '01', t: 'Strategy session', b: 'Goals, borrowing capacity, SMSF status, state preference. We match strategy to circumstance — not stock to quota.' },
-              { n: '02', t: 'Package + numbers', b: 'Shortlisted packages with full cashflow models, compliance pathway and finance plan. Take them to your own advisers.' },
-              { n: '03', t: 'Secure + build', b: 'Land secured, fixed-price build contract signed. Progress updates at every stage through to handover.' },
-              { n: '04', t: 'Compliance + tenants', b: 'Registration and licensing handled with specialist managers. Rooms marketed, tenanted and earning.' },
+              { n: '01', t: 'Choose your package', b: 'Browse with real prices, real floorplans and real title dates. Compare up to three side by side.' },
+              { n: '02', t: 'Lock the numbers', b: 'Fixed-price contract with fixed site costs. Grants and duty concessions confirmed for your situation, finance sorted with our broker panel.' },
+              { n: '03', t: 'Watch it go up', b: 'Site start on titled land within weeks. Progress updates at every stage — slab, frame, lockup, fixing.' },
+              { n: '04', t: 'Get the keys', b: 'Independent handover inspection, then move in — landscaping, driveway and blinds already done.' },
             ].map((s, i) => (
               <Reveal key={s.n} delay={i * 0.1}>
                 <div className="relative border-t-2 border-brass pt-6">
@@ -381,17 +359,17 @@ export default function Home() {
           <Reveal>
             <p className="eyebrow">Straight answers</p>
             <h2 className="display-tight mt-3 font-display text-[32px] font-semibold leading-tight text-ink sm:text-[38px]">
-              The questions other sites avoid
+              The questions builders dodge
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-muted">
-              Lending caps, management fees, licensing penalties — the co-living industry's awkward
-              topics, answered in plain English.
+              Site costs, real build times, what the grants are actually worth — answered in plain
+              English, with the 2026 numbers.
             </p>
             <Link
-              to="/why-co-living"
+              to="/buying-guide"
               className="group mt-6 inline-flex items-center gap-2 text-[14.5px] font-semibold text-growth hover:underline"
             >
-              Read the full strategy guide
+              Read the full buying guide
               <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
             </Link>
           </Reveal>
@@ -405,17 +383,17 @@ export default function Home() {
       <section className="blueprint grain relative bg-pine text-paper">
         <div className="mx-auto grid max-w-7xl items-center gap-14 px-5 py-24 lg:grid-cols-2 lg:px-8">
           <Reveal>
-            <ScrollText size={26} className="text-brass-bright" />
+            <BadgeCheck size={26} className="text-brass-bright" />
             <h2 className="display-tight mt-5 font-display text-[34px] font-semibold leading-tight sm:text-[42px]">
-              Ready to see the numbers on <em className="text-brass-bright">your</em> next property?
+              Tell us your budget. We'll show you <em className="text-brass-bright">exactly</em> what it builds.
             </h2>
             <p className="mt-5 max-w-lg text-[15.5px] leading-relaxed text-paper/65">
-              Book a strategy call. We'll map your borrowing position, shortlist packages that fit,
-              and hand you the full cashflow model — including the fees other sellers leave out.
+              A quick call with a Keyplex consultant: your borrowing position, the grants you qualify
+              for, and a shortlist of packages with floorplans and full numbers — usually same day.
             </p>
             <p className="mt-8 flex items-center gap-3 text-[15px] text-paper/80">
-              <TrendingUp size={18} className="text-brass-bright" />
-              Average response time: minutes, not days.
+              <Timer size={18} className="text-brass-bright" />
+              We respond in minutes during business hours.
             </p>
           </Reveal>
           <Reveal delay={0.15}>

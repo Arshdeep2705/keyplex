@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -11,23 +11,24 @@ import {
   Eye,
   FileText,
   Home,
-  KeyRound,
   LandPlot,
+  Layers,
   Loader2,
   Ruler,
   Timer,
   Zap,
 } from 'lucide-react'
 import type { Pkg } from '../lib/types'
-import { TYPE_LABEL } from '../lib/types'
+import { TYPE_LABEL, toSquares } from '../lib/types'
 import { fetchBySlug, fetchPublished, incrementViews } from '../lib/data'
-import { pkgYield } from '../lib/calc'
-import { money, moneyShort, pct, sqm } from '../lib/format'
+import { estWeeklyRepayment } from '../lib/calc'
+import { generateFloorplan, roomSchedule } from '../lib/floorplan'
+import { money, moneyShort, sqm } from '../lib/format'
 import { useCompare } from '../lib/CompareContext'
 import Gallery from '../components/Gallery'
-import IncomeTable from '../components/IncomeTable'
+import FloorplanSVG from '../components/FloorplanSVG'
 import CalculatorPanel from '../components/CalculatorPanel'
-import ComplianceCard from '../components/ComplianceCard'
+import TrustCard from '../components/TrustCard'
 import InclusionsAccordion from '../components/InclusionsAccordion'
 import LeadForm from '../components/LeadForm'
 import PackageCard from '../components/PackageCard'
@@ -61,13 +62,27 @@ export default function PackageDetail() {
         if (p) {
           document.title = `${p.title} — Keyplex`
           incrementViews(slug)
-          fetchPublished().then((all) =>
-            setSimilar(all.filter((x) => x.slug !== slug && x.package_type === p.package_type).slice(0, 3)),
-          )
+          fetchPublished().then((all) => setSimilar(all.filter((x) => x.slug !== slug).slice(0, 3)))
         }
       })
       .catch(() => setPkg(null))
   }, [slug])
+
+  const plan = useMemo(() => {
+    if (!pkg) return null
+    return generateFloorplan({
+      beds: pkg.package_type === 'dual_occupancy' ? pkg.beds - (pkg.unit_beds ?? 0) : pkg.beds,
+      baths: pkg.baths,
+      cars: pkg.cars,
+      living: pkg.living_areas ?? 1,
+      study: pkg.has_study,
+      alfresco: pkg.has_alfresco,
+      storeys: pkg.storeys,
+      houseArea: pkg.house_area ?? 200,
+      lotWidth: pkg.lot_width,
+      variant: pkg.floorplan_variant,
+    })
+  }, [pkg])
 
   if (pkg === undefined) {
     return (
@@ -88,9 +103,10 @@ export default function PackageDetail() {
     )
   }
 
-  const yieldPct = pkgYield(pkg)
   const gallery = pkg.gallery?.length ? pkg.gallery : pkg.hero_image ? [pkg.hero_image] : []
   const inCompare = has(pkg.slug)
+  const weekly = estWeeklyRepayment(pkg.price)
+  const schedule = plan ? roomSchedule(plan) : []
 
   async function handlePdf(mode: 'download' | 'view') {
     if (!pkg) return
@@ -119,14 +135,16 @@ export default function PackageDetail() {
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
                 <span className="rounded-md bg-brass px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-pine">
-                  {TYPE_LABEL[pkg.package_type]}
+                  {pkg.package_type === 'house_land'
+                    ? `${pkg.storeys > 1 ? 'Double' : 'Single'} storey`
+                    : TYPE_LABEL[pkg.package_type]}
                 </span>
                 <span className="rounded-md border border-paper/25 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-paper/80">
                   {pkg.title_status}
                 </span>
-                {pkg.contract_type === 'single_part' && (
+                {pkg.design_name && (
                   <span className="rounded-md border border-brass-bright/60 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-brass-bright">
-                    SMSF-ready
+                    {pkg.design_name} design
                   </span>
                 )}
               </div>
@@ -148,11 +166,9 @@ export default function PackageDetail() {
                   Land {moneyShort(pkg.land_price)} + Build {moneyShort(pkg.build_price)}
                 </p>
               )}
-              {yieldPct && (
-                <p className="tnum mt-2 inline-block rounded-md bg-growth px-2.5 py-1 text-[13.5px] font-bold text-white">
-                  {pct(yieldPct)} gross yield <span className="font-normal opacity-80">· projected*</span>
-                </p>
-              )}
+              <p className="tnum mt-2 inline-block rounded-md bg-growth px-2.5 py-1 text-[13.5px] font-bold text-white">
+                From {money(Math.round(weekly))}/wk <span className="font-normal opacity-80">· est. repayments*</span>
+              </p>
             </div>
           </div>
         </div>
@@ -203,14 +219,50 @@ export default function PackageDetail() {
                 <Spec icon={Bath} label="Bathrooms" value={String(pkg.baths)} />
                 <Spec icon={Car} label="Garage" value={String(pkg.cars)} />
                 <Spec icon={LandPlot} label="Land" value={sqm(pkg.land_size)} />
-                <Spec icon={Home} label="House" value={sqm(pkg.house_area)} />
+                <Spec icon={Home} label="House" value={`${sqm(pkg.house_area)} · ${toSquares(pkg.house_area)}`} />
                 <Spec icon={Ruler} label="Lot width" value={pkg.lot_width ? `${pkg.lot_width} m` : '—'} />
+                <Spec icon={Layers} label="Storeys" value={String(pkg.storeys)} />
                 {pkg.build_time_weeks && <Spec icon={Timer} label="Build time" value={`~${pkg.build_time_weeks} wks`} />}
                 {pkg.energy_rating && <Spec icon={Zap} label="Energy" value={`${pkg.energy_rating}★`} />}
-                {(pkg.rooms_rentable ?? 0) > 1 && (
-                  <Spec icon={KeyRound} label="Income streams" value={String(pkg.rooms_rentable)} />
-                )}
               </div>
+
+              {/* floorplan */}
+              {plan && (
+                <div id="floorplan">
+                  <FloorplanSVG plan={plan} />
+                </div>
+              )}
+
+              {/* room schedule */}
+              {schedule.length > 0 && (
+                <div className="overflow-hidden rounded-2xl border border-line bg-card">
+                  <div className="border-b border-line bg-cream/60 px-6 py-4">
+                    <p className="eyebrow">Room schedule</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="tnum w-full text-left text-[13.5px]">
+                      <thead>
+                        <tr className="border-b border-line text-[11px] uppercase tracking-[0.08em] text-mist">
+                          <th className="px-6 py-2.5 font-semibold">Room</th>
+                          {pkg.storeys > 1 && <th className="px-4 py-2.5 font-semibold">Level</th>}
+                          <th className="px-4 py-2.5 font-semibold">Dimensions</th>
+                          <th className="px-6 py-2.5 text-right font-semibold">Area</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-line/60">
+                        {schedule.map((r, i) => (
+                          <tr key={i}>
+                            <td className="px-6 py-2.5 font-medium text-ink">{r.name}</td>
+                            {pkg.storeys > 1 && <td className="px-4 py-2.5 text-muted">{r.storey}</td>}
+                            <td className="px-4 py-2.5 text-muted">{r.dims}</td>
+                            <td className="px-6 py-2.5 text-right text-muted">{r.area}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               {/* description + highlights */}
               <div>
@@ -233,8 +285,7 @@ export default function PackageDetail() {
 
             {/* right column */}
             <div className="space-y-6">
-              <IncomeTable pkg={pkg} />
-              <ComplianceCard pkg={pkg} />
+              <TrustCard pkg={pkg} />
               <div id="enquire">
                 <p className="eyebrow mb-3">Enquire about this package</p>
                 <LeadForm packageId={pkg.id} source={`package:${pkg.slug}`} compact />
@@ -252,9 +303,7 @@ export default function PackageDetail() {
             <div className="mt-16">
               <Reveal>
                 <p className="eyebrow">Keep exploring</p>
-                <h2 className="mt-2 font-display text-[26px] font-semibold text-ink">
-                  Similar {TYPE_LABEL[pkg.package_type]} packages
-                </h2>
+                <h2 className="mt-2 font-display text-[26px] font-semibold text-ink">More packages</h2>
               </Reveal>
               <div className="mt-7 grid gap-7 md:grid-cols-2 lg:grid-cols-3">
                 {similar.map((p, i) => (
@@ -267,10 +316,11 @@ export default function PackageDetail() {
           )}
 
           <p className="mt-12 text-[11.5px] leading-relaxed text-mist">
-            *All rents, yields and returns shown are projections based on current market appraisals and
-            the assumptions stated — projected, not guaranteed. Images are illustrative and may include
-            upgrade items. Price subject to land availability and developer approval. General information
-            only; seek independent financial, legal and taxation advice.
+            *Repayment estimates assume a 10% deposit, 5.60% p.a. and a 30-year principal &amp; interest
+            loan — adjust them in the calculator above. Concept floor plans are auto-generated and
+            indicative only; final working drawings are prepared by the builder. Images are illustrative
+            and may include upgrade items. Price subject to land availability and developer approval.
+            General information only; seek independent financial and legal advice.
           </p>
         </div>
       </section>

@@ -17,6 +17,11 @@ export interface Pkg {
   id: string
   slug: string
   title: string
+  design_name: string | null
+  storeys: number
+  has_study: boolean
+  has_alfresco: boolean
+  floorplan_variant: number
   status: PackageStatus
   package_type: PackageType
   suburb: string
@@ -91,13 +96,13 @@ export const TYPE_LABEL: Record<PackageType, string> = {
   dual_occupancy: 'Dual Occupancy',
 }
 
-export const TYPE_DESCRIPTION: Record<PackageType, string> = {
-  coliving: 'Ensuited rooms rented individually — multiple income streams under one title.',
-  dual_key: 'Two self-contained dwellings under one roof — two rents, standard lending.',
-  house_land: 'Classic single-tenancy house & land — the capital growth baseline.',
-  rooming_house: 'Large-format registered rooming house — maximum income streams.',
-  ndis: 'SDA-capable design — a specialist vertical with its own risk profile.',
-  dual_occupancy: 'Two detached dwellings on one lot — subdivision potential.',
-}
+/** Types surfaced in the builder-facing UI. */
+export const UI_TYPES: PackageType[] = ['house_land', 'dual_occupancy', 'dual_key']
 
 export const STATES = ['VIC', 'SA', 'NSW', 'QLD', 'WA', 'TAS'] as const
+
+/** House size in "squares" (1 sq = 9.29 m²) — the Australian building industry unit. */
+export function toSquares(areaM2: number | null | undefined): string {
+  if (!areaM2) return '—'
+  return `${(areaM2 / 9.29).toFixed(1)} sq`
+}

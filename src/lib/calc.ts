@@ -45,6 +45,57 @@ export function dutiableValue(pkg: Pick<Pkg, 'price' | 'land_price' | 'contract_
   return pkg.price
 }
 
+export interface DutyResult {
+  duty: number
+  baseDuty: number
+  saving: number
+  note: string
+}
+
+/**
+ * Transfer duty with first-home-buyer treatment for NEW builds (as at 2026):
+ * VIC — full exemption when dutiable value ≤ $600k, sliding concession to $750k.
+ * SA — FHB duty abolished for eligible buyers of new homes / vacant land to build (no cap).
+ */
+export function dutyWithConcession(state: string, dutiable: number, firstHomeBuyer: boolean): DutyResult {
+  const base = stampDuty(state, dutiable)
+  if (!firstHomeBuyer) {
+    return { duty: base, baseDuty: base, saving: 0, note: 'Investor / non-FHB rates' }
+  }
+  if (state === 'VIC') {
+    if (dutiable <= 600_000) return { duty: 0, baseDuty: base, saving: base, note: 'VIC FHB exemption (≤ $600k dutiable value)' }
+    if (dutiable <= 750_000) {
+      const duty = base * ((dutiable - 600_000) / 150_000)
+      return { duty, baseDuty: base, saving: base - duty, note: 'VIC FHB sliding concession ($600k–$750k)' }
+    }
+    return { duty: base, baseDuty: base, saving: 0, note: 'Above the VIC FHB concession threshold' }
+  }
+  if (state === 'SA') {
+    return { duty: 0, baseDuty: base, saving: base, note: 'SA: no stamp duty for FHBs building or buying a new home' }
+  }
+  return { duty: base, baseDuty: base, saving: 0, note: 'Check your state FHB concessions' }
+}
+
+/** First Home Owner Grant for NEW homes (2026). */
+export function fhog(state: string, price: number): number {
+  if (state === 'VIC') return price <= 750_000 ? 10_000 : 0
+  if (state === 'SA') return 15_000
+  return 0
+}
+
+/** Headline weekly repayment for cards: 10% deposit, 5.90% p.a. (avg variable, mid-2026), 30-year P&I. */
+export function estWeeklyRepayment(price: number, depositPct = 10, ratePct = 5.9): number {
+  const loan = price * (1 - depositPct / 100)
+  return (monthlyRepayment(loan, ratePct, 30, false) * 12) / 52
+}
+
+/** Home Guarantee Scheme price caps (from 1 Oct 2025: no income caps, no place limits). */
+export function hgsEligible(state: string, price: number, metro = true): boolean {
+  if (state === 'VIC') return price <= (metro ? 950_000 : 650_000)
+  if (state === 'SA') return price <= (metro ? 900_000 : 500_000)
+  return false
+}
+
 /** Monthly loan repayment (principal & interest, or interest-only). */
 export function monthlyRepayment(
   principal: number,
