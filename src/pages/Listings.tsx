@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Search, SlidersHorizontal } from 'lucide-react'
+import { ChevronDown, Search, SlidersHorizontal } from 'lucide-react'
 import type { Pkg, PackageType } from '../lib/types'
 import { TYPE_LABEL } from '../lib/types'
 import { fetchPublished } from '../lib/data'
@@ -33,6 +33,10 @@ export default function Listings() {
   const [minBeds, setMinBeds] = useState(0)
   const [sort, setSort] = useState<'newest' | 'price_asc' | 'price_desc'>('newest')
   const [q, setQ] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
+  const activeFilters =
+    (state !== 'all' ? 1 : 0) + (storeys > 0 ? 1 : 0) + (maxPrice > 0 ? 1 : 0) + (minBeds > 0 ? 1 : 0) + (q.trim() ? 1 : 0)
 
   useEffect(() => {
     document.title = 'House & Land Packages — Keyplex'
@@ -83,44 +87,62 @@ export default function Listings() {
         </div>
       </section>
 
-      {/* filter bar */}
+      {/* filter bar — compact + collapsible on mobile, inline on desktop */}
       <section className="sticky top-[68px] z-30 border-b border-line bg-paper/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-5 py-4 lg:px-8">
-          <div className="flex flex-wrap gap-1.5">
-            {TYPE_FILTERS.map((t) => (
-              <button
-                key={t}
-                onClick={() => setType(t)}
-                className={`rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${
-                  type === t ? 'bg-pine text-paper' : 'bg-cream text-muted hover:bg-line'
-                }`}
-              >
-                {t === 'all' ? 'All' : TYPE_LABEL[t]}
-              </button>
-            ))}
+        <div className="mx-auto max-w-7xl px-5 py-3 lg:px-8">
+          <div className="flex items-center gap-2.5">
+            {/* type pills: horizontally scrollable, never wrap */}
+            <div className="-mx-1 flex flex-1 gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {TYPE_FILTERS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setType(t)}
+                  className={`shrink-0 rounded-lg px-3.5 py-2.5 text-[13px] font-semibold transition-colors ${
+                    type === t ? 'bg-pine text-paper' : 'bg-cream text-muted hover:bg-line'
+                  }`}
+                >
+                  {t === 'all' ? 'All' : TYPE_LABEL[t]}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setFiltersOpen(!filtersOpen)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3.5 py-2.5 text-[13px] font-semibold transition-colors lg:hidden ${
+                filtersOpen || activeFilters > 0 ? 'border-brass bg-brass-soft text-ink' : 'border-line bg-card text-muted'
+              }`}
+              aria-expanded={filtersOpen}
+            >
+              <SlidersHorizontal size={14} />
+              Filters
+              {activeFilters > 0 && (
+                <span className="tnum rounded-full bg-brass px-1.5 text-[11px] font-bold text-pine">{activeFilters}</span>
+              )}
+              <ChevronDown size={14} className={`transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
+            </button>
           </div>
 
-          <div className="ml-auto flex flex-wrap items-center gap-2.5">
-            <div className="relative">
+          {/* detailed filters: dropdown panel on mobile, always-visible row on lg+ */}
+          <div className={`${filtersOpen ? 'mt-3 grid' : 'hidden'} grid-cols-2 gap-2 lg:mt-3 lg:flex lg:flex-wrap lg:items-center lg:gap-2.5`}>
+            <div className="relative col-span-2 lg:col-auto">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-mist" />
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Suburb, estate or design…"
-                className="field !w-48 !py-2 !pl-9 text-[13.5px]"
+                className="field !py-2.5 !pl-9 text-[13.5px] lg:!w-52"
               />
             </div>
-            <select value={state} onChange={(e) => setState(e.target.value)} className="field !w-auto !py-2 text-[13.5px]">
+            <select value={state} onChange={(e) => setState(e.target.value)} className="field !py-2.5 text-[13.5px] lg:!w-auto">
               <option value="all">All states</option>
               <option value="VIC">VIC</option>
               <option value="SA">SA</option>
             </select>
-            <select value={storeys} onChange={(e) => setStoreys(Number(e.target.value))} className="field !w-auto !py-2 text-[13.5px]">
+            <select value={storeys} onChange={(e) => setStoreys(Number(e.target.value))} className="field !py-2.5 text-[13.5px] lg:!w-auto">
               <option value={0}>Any storeys</option>
               <option value={1}>Single storey</option>
               <option value={2}>Double storey</option>
             </select>
-            <select value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} className="field !w-auto !py-2 text-[13.5px]">
+            <select value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} className="field !py-2.5 text-[13.5px] lg:!w-auto">
               <option value={0}>Any price</option>
               {PRICE_STEPS.map((p) => (
                 <option key={p} value={p}>
@@ -128,7 +150,7 @@ export default function Listings() {
                 </option>
               ))}
             </select>
-            <select value={minBeds} onChange={(e) => setMinBeds(Number(e.target.value))} className="field !w-auto !py-2 text-[13.5px]">
+            <select value={minBeds} onChange={(e) => setMinBeds(Number(e.target.value))} className="field !py-2.5 text-[13.5px] lg:!w-auto">
               <option value={0}>Any beds</option>
               {[3, 4, 5].map((b) => (
                 <option key={b} value={b}>
@@ -136,14 +158,11 @@ export default function Listings() {
                 </option>
               ))}
             </select>
-            <span className="flex items-center gap-1.5">
-              <SlidersHorizontal size={14} className="text-mist" />
-              <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="field !w-auto !py-2 text-[13.5px]">
-                <option value="newest">Newest first</option>
-                <option value="price_asc">Price: low → high</option>
-                <option value="price_desc">Price: high → low</option>
-              </select>
-            </span>
+            <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="field !py-2.5 text-[13.5px] lg:!w-auto">
+              <option value="newest">Newest first</option>
+              <option value="price_asc">Price: low → high</option>
+              <option value="price_desc">Price: high → low</option>
+            </select>
           </div>
         </div>
       </section>

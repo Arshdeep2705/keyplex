@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
-import { Building2, Inbox, LayoutDashboard, Loader2, LogOut, ExternalLink } from 'lucide-react'
+import { Building2, Inbox, LayoutDashboard, Loader2, LogOut, ExternalLink, Menu, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import Logo from '../components/Logo'
 
@@ -66,6 +66,10 @@ function Login() {
 export default function AdminLayout() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [isAdmin, setIsAdmin] = useState<boolean | undefined>(undefined)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const { pathname } = useLocation()
+
+  useEffect(() => setMenuOpen(false), [pathname])
 
   useEffect(() => {
     document.title = 'Admin — Keyplex'
@@ -121,41 +125,73 @@ export default function AdminLayout() {
       isActive ? 'bg-pine-soft text-brass-bright' : 'text-paper/70 hover:bg-pine-soft/60 hover:text-paper'
     }`
 
+  const navLinks = (
+    <>
+      <NavLink to="/admin" end className={linkCls}>
+        <LayoutDashboard size={17} /> Dashboard
+      </NavLink>
+      <NavLink to="/admin/packages" className={linkCls}>
+        <Building2 size={17} /> Packages
+      </NavLink>
+      <NavLink to="/admin/leads" className={linkCls}>
+        <Inbox size={17} /> Leads
+      </NavLink>
+    </>
+  )
+
+  const utilityLinks = (
+    <>
+      <a
+        href={import.meta.env.BASE_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-[14px] font-medium text-paper/70 transition-colors hover:text-paper"
+      >
+        <ExternalLink size={17} /> View site
+      </a>
+      <button
+        onClick={() => supabase.auth.signOut()}
+        className="flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-[14px] font-medium text-paper/70 transition-colors hover:text-paper"
+      >
+        <LogOut size={17} /> Sign out
+      </button>
+    </>
+  )
+
   return (
-    <div className="flex min-h-screen bg-paper">
-      <aside className="fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-line-dark/60 bg-pine p-5">
+    <div className="min-h-screen bg-paper">
+      {/* mobile top bar */}
+      <header className="sticky top-0 z-40 border-b border-line-dark/60 bg-pine lg:hidden">
+        <div className="flex h-[60px] items-center justify-between px-4">
+          <NavLink to="/admin">
+            <Logo dark size={26} />
+          </NavLink>
+          <button
+            className="p-2.5 text-paper"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? 'Close admin menu' : 'Open admin menu'}
+          >
+            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
+        {menuOpen && (
+          <nav className="space-y-1 border-t border-line-dark/60 px-4 pb-4 pt-2">
+            {navLinks}
+            {utilityLinks}
+          </nav>
+        )}
+      </header>
+
+      {/* desktop sidebar */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line-dark/60 bg-pine p-5 lg:flex">
         <NavLink to="/admin">
           <Logo dark size={28} />
         </NavLink>
-        <nav className="mt-8 space-y-1.5">
-          <NavLink to="/admin" end className={linkCls}>
-            <LayoutDashboard size={17} /> Dashboard
-          </NavLink>
-          <NavLink to="/admin/packages" className={linkCls}>
-            <Building2 size={17} /> Packages
-          </NavLink>
-          <NavLink to="/admin/leads" className={linkCls}>
-            <Inbox size={17} /> Leads
-          </NavLink>
-        </nav>
-        <div className="mt-auto space-y-1.5">
-          <a
-            href={import.meta.env.BASE_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-[14px] font-medium text-paper/70 transition-colors hover:text-paper"
-          >
-            <ExternalLink size={17} /> View site
-          </a>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            className="flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-[14px] font-medium text-paper/70 transition-colors hover:text-paper"
-          >
-            <LogOut size={17} /> Sign out
-          </button>
-        </div>
+        <nav className="mt-8 space-y-1.5">{navLinks}</nav>
+        <div className="mt-auto space-y-1.5">{utilityLinks}</div>
       </aside>
-      <main className="ml-60 min-h-screen flex-1 p-8">
+
+      <main className="min-h-screen p-4 sm:p-6 lg:ml-60 lg:p-8">
         <Outlet />
       </main>
     </div>

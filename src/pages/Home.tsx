@@ -44,7 +44,7 @@ function PlanDemo() {
   )
 
   const chip = (active: boolean) =>
-    `rounded-lg border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+    `rounded-lg border px-3.5 py-2 text-[13px] font-semibold transition-colors ${
       active ? 'border-brass bg-brass text-pine' : 'border-line-dark/70 text-paper/75 hover:border-brass'
     }`
 

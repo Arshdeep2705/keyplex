@@ -341,7 +341,7 @@ export default function PackageEditor() {
             {isNew ? 'Build a package in under a minute' : form.title}
           </h1>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           {savedAt && <span className="text-[12px] text-mist">Saved {savedAt}</span>}
           <button
             onClick={previewBrochure}
@@ -372,7 +372,7 @@ export default function PackageEditor() {
 
       <div className="mt-6 grid gap-8 xl:grid-cols-[1fr_430px]">
         {/* ————— FORM ————— */}
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {/* 1 · type + design */}
           <section className="rounded-2xl border border-line bg-card p-6">
             <p className="field-label">1 · Package type &amp; design</p>
@@ -454,7 +454,7 @@ export default function PackageEditor() {
           {/* 3 · price */}
           <section className="rounded-2xl border border-line bg-card p-6">
             <p className="field-label">3 · Pricing</p>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 sm:grid-cols-3">
               <div>
                 <label className="field-label">Total fixed price ($) *</label>
                 <input type="number" className="field tnum" value={form.price || ''} onChange={(e) => set({ price: Number(e.target.value) })} placeholder="769000" />
@@ -497,7 +497,7 @@ export default function PackageEditor() {
           {/* 4 · home configuration */}
           <section className="rounded-2xl border border-line bg-card p-6">
             <p className="field-label">4 · Home configuration — drives the floorplan</p>
-            <div className="grid gap-4 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div>
                 <label className="field-label">Beds</label>
                 <input type="number" className="field tnum" value={form.beds ?? ''} onChange={(e) => set({ beds: Number(e.target.value) })} />
@@ -712,7 +712,7 @@ export default function PackageEditor() {
         </div>
 
         {/* ————— LIVE PREVIEW ————— */}
-        <div className="space-y-5 xl:sticky xl:top-8 xl:self-start">
+        <div className="min-w-0 space-y-5 xl:sticky xl:top-8 xl:self-start">
           <div>
             <p className="field-label">Live card preview</p>
             <div className="pointer-events-none">

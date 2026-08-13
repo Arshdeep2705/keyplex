@@ -153,7 +153,7 @@ export default function FloorplanSVG({ plan }: { plan: FpPlan }) {
               <button
                 key={s.label}
                 onClick={() => setActive(i)}
-                className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                className={`rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${
                   active === i ? 'bg-pine text-paper' : 'bg-cream text-muted hover:bg-line'
                 }`}
               >
@@ -162,7 +162,7 @@ export default function FloorplanSVG({ plan }: { plan: FpPlan }) {
             ))}
           <button
             onClick={() => setShowDims(!showDims)}
-            className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+            className={`rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${
               showDims ? 'bg-brass-soft text-brass' : 'bg-cream text-muted'
             }`}
           >
@@ -170,7 +170,7 @@ export default function FloorplanSVG({ plan }: { plan: FpPlan }) {
           </button>
           <button
             onClick={() => setFlipped(!flipped)}
-            className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+            className={`rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${
               flipped ? 'bg-brass-soft text-brass' : 'bg-cream text-muted'
             }`}
             title="Mirror the plan left-to-right"
@@ -179,10 +179,14 @@ export default function FloorplanSVG({ plan }: { plan: FpPlan }) {
           </button>
         </div>
       </div>
-      <div className="bg-paper px-4 py-4">
-        <StoreyPlan storey={storey} showDims={showDims} />
+      {/* on phones the plan keeps a legible minimum width and pans horizontally */}
+      <div className="overflow-x-auto bg-paper px-4 py-4">
+        <div className="min-w-[520px] sm:min-w-0">
+          <StoreyPlan storey={storey} showDims={showDims} />
+        </div>
       </div>
       <p className="border-t border-line px-6 py-3 text-[11px] text-mist">
+        <span className="sm:hidden">Swipe the plan to pan. </span>
         Auto-generated concept plan — indicative only, not for construction. Final working drawings are
         prepared by the builder and may differ. Dimensions approximate.
       </p>

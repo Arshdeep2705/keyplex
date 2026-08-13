@@ -209,8 +209,8 @@ export default function PackageDetail() {
           </div>
 
           <div className="grid gap-10 lg:grid-cols-[1.5fr_1fr]">
-            {/* left column */}
-            <div className="space-y-8">
+            {/* left column (min-w-0 lets inner tables scroll instead of blowing out the page) */}
+            <div className="min-w-0 space-y-8">
               <Gallery images={gallery} title={pkg.title} />
 
               {/* spec grid */}
@@ -284,7 +284,7 @@ export default function PackageDetail() {
             </div>
 
             {/* right column */}
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
               <TrustCard pkg={pkg} />
               <div id="enquire">
                 <p className="eyebrow mb-3">Enquire about this package</p>

@@ -59,8 +59,8 @@ export default function PackagesList() {
         </Link>
       </div>
 
-      <div className="mt-8 overflow-hidden rounded-2xl border border-line bg-card">
-        <table className="w-full">
+      <div className="mt-8 overflow-x-auto rounded-2xl border border-line bg-card">
+        <table className="w-full min-w-[760px]">
           <thead>
             <tr className="border-b border-line bg-cream/50 text-left text-[11.5px] font-semibold uppercase tracking-[0.08em] text-muted">
               <th className="px-5 py-3.5">Package</th>

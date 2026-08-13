@@ -43,7 +43,7 @@ export default function Nav() {
         </nav>
 
         <button
-          className="md:hidden"
+          className="-mr-2.5 p-2.5 md:hidden"
           onClick={() => setOpen(!open)}
           aria-label={open ? 'Close menu' : 'Open menu'}
         >
