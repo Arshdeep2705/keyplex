@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #0f1512;
+  --color-pine: #16241d;
+  --color-pine-soft: #1f3529;
+  --color-paper: #faf7f1;
+  --color-cream: #f2ecdf;
+  --color-card: #ffffff;
+  --color-brass: #b08d57;
+  --color-brass-bright: #cba76f;
+  --color-brass-soft: #f4ecdd;
+  --color-growth: #2e7d5b;
+  --color-growth-soft: #e7f1eb;
+  --color-line: #e6e0d2;
+  --color-line-dark: #2c4234;
+  --color-muted: #5a655e;
+  --color-mist: #8d9a92;
+  --color-danger: #b3543e;
+  --color-danger-soft: #f7e9e4;
+
+  --shadow-lift: 0 14px 40px -14px rgb(15 21 18 / 0.22);
+  --shadow-card: 0 1px 2px rgb(15 21 18 / 0.05);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-paper text-ink font-sans antialiased;
+  font-feature-settings: "ss01";
+}
+
+::selection {
+  background: #cba76f;
+  color: #16241d;
+}
+
+/* ——— signature textures ——— */
+
+.grain {
+  position: relative;
+}
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.blueprint {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+.blueprint-light {
+  background-image:
+    linear-gradient(to right, rgb(15 21 18 / 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(15 21 18 / 0.035) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+/* ——— type helpers ——— */
+
+.eyebrow {
+  @apply font-sans text-[11px] font-semibold uppercase tracking-[0.22em] text-brass;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.display-tight {
+  letter-spacing: -0.015em;
+}
+
+/* ——— motion ——— */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-up {
+  animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* thin elegant scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d8d0be; border-radius: 8px; border: 2px solid #faf7f1; }
+::-webkit-scrollbar-thumb:hover { background: #b08d57; }
+
+/* inputs */
+.field {
+  @apply w-full rounded-lg border border-line bg-card px-3.5 py-2.5 text-[15px] text-ink outline-none transition-colors placeholder:text-mist focus:border-brass;
+}
+
+.field-label {
+  @apply mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.08em] text-muted;
+}
+
+/* range slider (calculator) */
+input[type="range"] {
+  @apply h-1.5 w-full cursor-pointer appearance-none rounded-full;
+  background: linear-gradient(to right, #b08d57 var(--fill, 50%), #e6e0d2 var(--fill, 50%));
+}
+input[type="range"]::-webkit-slider-thumb {
+  @apply h-4.5 w-4.5 appearance-none rounded-full border-2 border-paper;
+  background: #16241d;
+  box-shadow: 0 1px 6px rgb(15 21 18 / 0.35);
+}
