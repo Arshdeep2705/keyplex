@@ -5,6 +5,7 @@ import {
   Check,
   FileText,
   Loader2,
+  MapPin,
   Plus,
   Sparkles,
   Trash2,
@@ -16,10 +17,12 @@ import { TYPE_LABEL, UI_TYPES, toSquares } from '../lib/types'
 import { fetchPresets, savePackage, uploadImage } from '../lib/data'
 import { supabase } from '../lib/supabase'
 import { dutiableValue, dutyWithConcession, estWeeklyRepayment, fhog } from '../lib/calc'
-import { generateFloorplan } from '../lib/floorplan'
+import { floorplanInput, generateFloorplan } from '../lib/floorplan'
+import { geocodePackage } from '../lib/geocode'
 import { money, slugify } from '../lib/format'
 import PackageCard from '../components/PackageCard'
 import FloorplanSVG from '../components/FloorplanSVG'
+import ListingMap from '../components/ListingMap'
 
 const STOCK: string[] = [
   ...[
@@ -101,9 +104,12 @@ export default function PackageEditor() {
   const [presets, setPresets] = useState<InclusionPreset[]>([])
   const [titleTouched, setTitleTouched] = useState(false)
   const [descTouched, setDescTouched] = useState(false)
+  const [highlightsTouched, setHighlightsTouched] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<string>('')
   const [error, setError] = useState('')
+  const [geoBusy, setGeoBusy] = useState(false)
+  const [geoMatch, setGeoMatch] = useState<string>('')
 
   useEffect(() => {
     fetchPresets().then((p) => {
@@ -118,15 +124,19 @@ export default function PackageEditor() {
         .from('kp_packages')
         .select('*')
         .eq('id', id)
-        .single()
-        .then(({ data }) => {
-          if (data) {
-            setForm(data as Pkg)
-            setTitleTouched(true)
-            setDescTouched(true)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (error || !data) {
+            navigate('/admin/packages', { replace: true })
+            return
           }
+          setForm(data as Pkg)
+          setTitleTouched(true)
+          setDescTouched(true)
+          setHighlightsTouched(true)
         })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isNew])
 
   const set = (patch: Partial<Pkg>) => setForm((f) => ({ ...f, ...patch }))
@@ -138,17 +148,18 @@ export default function PackageEditor() {
       if (preset) next.inclusions = preset.items
       if (!titleTouched) next.title = autoTitle(next)
       if (!descTouched) next.description = autoDescription(next)
-      next.highlights = autoHighlights(next)
+      if (!highlightsTouched) next.highlights = autoHighlights(next)
       return next
     })
   }
 
-  /* keep auto copy in sync with the numbers */
+  /* keep auto copy in sync with every field the templates actually read */
   useEffect(() => {
     setForm((f) => {
       const next = { ...f }
       if (!titleTouched) next.title = autoTitle(f)
       if (!descTouched) next.description = autoDescription(f)
+      if (!highlightsTouched) next.highlights = autoHighlights(f)
       next.slug =
         f.slug && !isNew
           ? f.slug
@@ -156,7 +167,39 @@ export default function PackageEditor() {
       return next
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.suburb, form.design_name, form.package_type, form.beds, form.baths, form.storeys, form.has_study, form.has_alfresco, form.land_price, form.state])
+  }, [
+    form.suburb, form.design_name, form.package_type, form.beds, form.baths, form.storeys,
+    form.has_study, form.has_alfresco, form.land_price, form.state, form.land_size, form.estate,
+    form.living_areas, form.unit_beds, form.unit_baths, form.lot_width, form.title_status,
+  ])
+
+  /* auto-locate on the map once an address is typed (debounced; never overwrites a manual pin) */
+  useEffect(() => {
+    if (!form.suburb || form.suburb.length < 3 || form.lat != null) return
+    const t = setTimeout(() => void locate(false), 1100)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.suburb, form.estate, form.address_hint, form.postcode, form.state])
+
+  async function locate(force: boolean) {
+    if (!form.suburb) return
+    if (!force && form.lat != null) return
+    setGeoBusy(true)
+    const hit = await geocodePackage({
+      address_hint: form.address_hint,
+      estate: form.estate,
+      suburb: form.suburb,
+      state: form.state ?? 'VIC',
+      postcode: form.postcode,
+    })
+    if (hit) {
+      set({ lat: hit.lat, lng: hit.lng })
+      setGeoMatch(hit.matchedOn)
+    } else {
+      setGeoMatch('not found — drag the pin manually or check the suburb spelling')
+    }
+    setGeoBusy(false)
+  }
 
   /* live computed metrics */
   const weekly = form.price ? estWeeklyRepayment(form.price) : null
@@ -165,18 +208,23 @@ export default function PackageEditor() {
 
   const plan = useMemo(() => {
     if (!form.beds) return null
-    return generateFloorplan({
-      beds: form.package_type === 'dual_occupancy' ? (form.beds ?? 4) - (form.unit_beds ?? 0) : form.beds ?? 4,
-      baths: form.baths ?? 2,
-      cars: form.cars ?? 2,
-      living: form.living_areas ?? 1,
-      study: form.has_study ?? false,
-      alfresco: form.has_alfresco ?? true,
-      storeys: form.storeys ?? 1,
-      houseArea: form.house_area ?? 200,
-      lotWidth: form.lot_width,
-      variant: form.floorplan_variant ?? 0,
-    })
+    return generateFloorplan(
+      floorplanInput({
+        package_type: form.package_type ?? 'house_land',
+        beds: form.beds ?? 4,
+        baths: form.baths ?? 2,
+        cars: form.cars ?? 2,
+        living_areas: form.living_areas ?? 1,
+        has_study: form.has_study ?? false,
+        has_alfresco: form.has_alfresco ?? true,
+        storeys: form.storeys ?? 1,
+        house_area: form.house_area ?? 200,
+        lot_width: form.lot_width ?? null,
+        floorplan_variant: form.floorplan_variant ?? 0,
+        unit_beds: form.unit_beds ?? 0,
+        unit_baths: form.unit_baths ?? 0,
+      }),
+    )
   }, [form])
 
   const previewPkg: Pkg = {
@@ -238,8 +286,10 @@ export default function PackageEditor() {
     setBusy(publish ? 'publish' : 'save')
     setError('')
     try {
+      // server-owned columns must never round-trip from a possibly stale form
+      const { views_count: _v, created_at: _c, updated_at: _u, ...editable } = form
       const payload: Partial<Pkg> = {
-        ...form,
+        ...editable,
         title: form.title || autoTitle(form),
         slug: form.slug || slugify(`${form.design_name || form.package_type}-${form.suburb}`),
         description: form.description || autoDescription(form),
@@ -293,9 +343,10 @@ export default function PackageEditor() {
           gallery: [...(f.gallery ?? []), url],
         }))
       }
-    } catch {
-      setError('Upload failed — check you are signed in as an admin.')
+    } catch (err: unknown) {
+      setError(`Upload failed: ${(err as Error).message ?? 'check you are signed in as an admin.'}`)
     } finally {
+      e.target.value = '' // allow re-picking the same file
       setBusy(null)
     }
   }
@@ -356,7 +407,7 @@ export default function PackageEditor() {
             disabled={busy !== null}
             className="rounded-lg border border-line bg-card px-4 py-2.5 text-[13.5px] font-semibold text-ink transition-colors hover:border-brass disabled:opacity-60"
           >
-            {busy === 'save' ? 'Saving…' : 'Save draft'}
+            {busy === 'save' ? 'Saving…' : form.status === 'published' ? 'Save changes' : 'Save draft'}
           </button>
           <button
             onClick={() => save(true)}
@@ -420,7 +471,19 @@ export default function PackageEditor() {
               </div>
               <div>
                 <label className="field-label">State</label>
-                <select className="field" value={form.state} onChange={(e) => set({ state: e.target.value, builder_name: `Partner Builder — ${e.target.value}` })}>
+                <select
+                  className="field"
+                  value={form.state}
+                  onChange={(e) =>
+                    set({
+                      state: e.target.value,
+                      // only refresh the placeholder builder name — never clobber a real one
+                      ...(!form.builder_name || /^Partner Builder — /.test(form.builder_name)
+                        ? { builder_name: `Partner Builder — ${e.target.value}` }
+                        : {}),
+                    })
+                  }
+                >
                   {['VIC', 'SA', 'NSW', 'QLD', 'WA', 'TAS'].map((s) => <option key={s}>{s}</option>)}
                 </select>
               </div>
@@ -448,6 +511,48 @@ export default function PackageEditor() {
                 <label className="field-label">Title status</label>
                 <input className="field" value={form.title_status ?? ''} onChange={(e) => set({ title_status: e.target.value })} placeholder="Titled — ready to build / Titles Q1 2027" />
               </div>
+            </div>
+
+            {/* map auto-locate */}
+            <div className="mt-5 border-t border-line pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="field-label !mb-0">Map location — shown on the listing</p>
+                <button
+                  onClick={() => locate(true)}
+                  disabled={geoBusy || !form.suburb}
+                  className="flex items-center gap-1.5 rounded-lg border border-line px-3.5 py-2 text-[13px] font-semibold text-ink transition-colors hover:border-brass disabled:opacity-50"
+                >
+                  {geoBusy ? <Loader2 size={13} className="animate-spin" /> : <MapPin size={13} />}
+                  {form.lat != null ? 'Re-locate from address' : 'Locate on map'}
+                </button>
+              </div>
+              {form.lat != null && form.lng != null ? (
+                <div className="mt-3">
+                  <ListingMap
+                    lat={form.lat}
+                    lng={form.lng}
+                    height={230}
+                    zoom={14}
+                    draggable
+                    onMove={(la, ln) => {
+                      set({ lat: la, lng: ln })
+                      setGeoMatch('manual pin')
+                    }}
+                  />
+                  <p className="mt-2 text-[12px] text-mist">
+                    {geoMatch ? `Located from: ${geoMatch}. ` : ''}Drag the pin to the exact lot — it saves
+                    with the package.
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-2 text-[12.5px] text-mist">
+                  {geoBusy
+                    ? 'Locating…'
+                    : geoMatch.startsWith('not found')
+                      ? geoMatch
+                      : 'The map pin appears automatically once you type the suburb.'}
+                </p>
+              )}
             </div>
           </section>
 
@@ -650,7 +755,10 @@ export default function PackageEditor() {
                   rows={4}
                   className="field"
                   value={(form.highlights ?? []).join('\n')}
-                  onChange={(e) => set({ highlights: e.target.value.split('\n').filter(Boolean) })}
+                  onChange={(e) => {
+                    setHighlightsTouched(true)
+                    set({ highlights: e.target.value.split('\n').filter(Boolean) })
+                  }}
                 />
               </div>
             </div>

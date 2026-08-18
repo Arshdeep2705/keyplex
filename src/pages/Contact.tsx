@@ -12,13 +12,13 @@ export default function Contact() {
     <section className="bg-paper">
       <div className="mx-auto grid max-w-7xl gap-14 px-5 py-16 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
         <Reveal>
-          <p className="eyebrow">Talk to a strategist</p>
+          <p className="eyebrow">Talk to a consultant</p>
           <h1 className="display-tight mt-3 font-display text-[38px] font-semibold text-ink sm:text-[46px]">
             Let's put numbers on it
           </h1>
           <p className="mt-4 max-w-md text-[15.5px] leading-relaxed text-muted">
-            Whether you're comparing dual key against co-living, buying through an SMSF, or just
-            want the honest version of the yield story — start here.
+            Whether you're weighing a single storey against a double, working out which grants you
+            qualify for, or just want the honest numbers before you visit a display home — start here.
           </p>
 
           <div className="mt-10 space-y-5">
@@ -55,7 +55,7 @@ export default function Contact() {
           <div className="mt-10 rounded-2xl border border-line bg-card p-6">
             <p className="eyebrow">What happens next</p>
             <ol className="mt-4 space-y-3 text-[14px] leading-relaxed text-muted">
-              <li><strong className="text-ink">1.</strong> A strategist calls to understand goals, borrowing position and structure (personal, trust, SMSF).</li>
+              <li><strong className="text-ink">1.</strong> A consultant calls to understand your goals, budget and borrowing position.</li>
               <li><strong className="text-ink">2.</strong> You get a shortlist with full cashflow models and compliance pathways.</li>
               <li><strong className="text-ink">3.</strong> You take everything to your own adviser — we insist on it.</li>
             </ol>

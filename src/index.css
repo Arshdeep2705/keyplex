@@ -18,7 +18,7 @@
   --color-line: #e6e0d2;
   --color-line-dark: #2c4234;
   --color-muted: #5a655e;
-  --color-mist: #8d9a92;
+  --color-mist: #6f7d75; /* AA-contrast on paper — carries the small-print disclaimers */
   --color-danger: #b3543e;
   --color-danger-soft: #f7e9e4;
 
@@ -37,6 +37,24 @@ select,
 input[type='range'] {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+}
+
+/* tactile press on every control */
+button:active,
+a:active {
+  transform: scale(0.985);
+}
+.leaflet-container a:active {
+  transform: none;
+}
+
+/* gallery crossfade */
+@keyframes img-fade {
+  from { opacity: 0.3; }
+  to { opacity: 1; }
+}
+.img-fade {
+  animation: img-fade 0.4s ease both;
 }
 
 :focus-visible {
@@ -105,6 +123,27 @@ body {
 
 .fade-up {
   animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* floorplan rooms draw in one by one */
+@keyframes fp-room-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.fp-room {
+  animation: fp-room-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-room,
+  .fade-up {
+    animation: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 /* thin elegant scrollbar */

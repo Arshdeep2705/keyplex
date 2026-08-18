@@ -63,7 +63,8 @@ interface ColumnItem {
   zone: FpZone
 }
 
-/** Greedy fill of two side columns, returns rooms + the max depth reached. */
+/** Greedy fill of two side columns, returns rooms + the max depth reached.
+ *  Pass leftW <= 0 for single-column mode (no garage side): everything stacks right. */
 function fillColumns(
   items: ColumnItem[],
   leftX: number,
@@ -74,10 +75,11 @@ function fillColumns(
   rightStartY: number,
 ): { rooms: FpRoom[]; maxY: number } {
   const rooms: FpRoom[] = []
+  const hasLeft = leftW > 0
   let ly = leftStartY
   let ry = rightStartY
   for (const item of items) {
-    if (ly <= ry) {
+    if (hasLeft && ly <= ry) {
       rooms.push({ name: item.name, x: leftX, y: r2(ly), w: leftW, h: item.depth, zone: item.zone })
       ly += item.depth
     } else {
@@ -86,13 +88,15 @@ function fillColumns(
     }
   }
   // level the columns with a linen/store filler if the gap is meaningful
-  const maxY = Math.max(ly, ry)
+  const maxY = hasLeft ? Math.max(ly, ry) : ry
   const gapLeft = maxY - ly
   const gapRight = maxY - ry
-  if (gapLeft > 0.8) rooms.push({ name: 'Linen', x: leftX, y: r2(ly), w: leftW, h: r2(gapLeft), zone: 'store' })
-  else if (gapLeft > 0) {
-    const last = rooms.filter((r) => r.x === leftX).pop()
-    if (last) last.h = r2(last.h + gapLeft)
+  if (hasLeft) {
+    if (gapLeft > 0.8) rooms.push({ name: 'Linen', x: leftX, y: r2(ly), w: leftW, h: r2(gapLeft), zone: 'store' })
+    else if (gapLeft > 0) {
+      const last = rooms.filter((r) => r.x === leftX).pop()
+      if (last) last.h = r2(last.h + gapLeft)
+    }
   }
   if (gapRight > 0.8) rooms.push({ name: 'Store', x: rightX, y: r2(ry), w: rightW, h: r2(gapRight), zone: 'store' })
   else if (gapRight > 0) {
@@ -155,7 +159,7 @@ function singleStorey(input: FpInput, W: number): FpStorey {
   items.push({ name: 'Laundry', depth: 1.9, zone: 'wet' })
   if (input.baths >= 2) items.push({ name: 'WC', depth: 1.3, zone: 'wet' })
 
-  const filled = fillColumns(items, 0, garageW || rightW, leftStartY, rightX, rightW, rightStartY)
+  const filled = fillColumns(items, 0, garageW, leftStartY, rightX, rightW, rightStartY)
   rooms.push(...filled.rooms)
 
   // hall from entry to the living zone
@@ -181,13 +185,15 @@ function doubleStorey(input: FpInput, W: number): FpStorey[] {
   const upperArea = input.houseArea * 0.45
 
   // ——— ground: garage, entry, study/guest, laundry, powder, open plan ———
-  const garageW = input.cars >= 2 ? 5.7 : 3.4
+  const garageW = input.cars >= 2 ? 5.7 : input.cars === 1 ? 3.4 : 0
   const rightX = garageW + HALL_W
   const rightW = W - rightX
   const rooms: FpRoom[] = [
-    { name: input.cars >= 2 ? 'Double Garage' : 'Garage', x: 0, y: 0, w: garageW, h: GARAGE_D, zone: 'garage' },
     { name: 'Porch', x: garageW, y: -1.6, w: HALL_W + 1.2, h: 1.6, zone: 'outdoor', outdoor: true },
   ]
+  if (garageW > 0) {
+    rooms.push({ name: input.cars >= 2 ? 'Double Garage' : 'Garage', x: 0, y: 0, w: garageW, h: GARAGE_D, zone: 'garage' })
+  }
   let rightY = 0
   if (input.study) {
     rooms.push({ name: 'Study', x: rightX, y: 0, w: rightW, h: 3.0, zone: 'living' })
@@ -196,7 +202,7 @@ function doubleStorey(input: FpInput, W: number): FpStorey[] {
   rooms.push({ name: 'Powder', x: rightX, y: rightY, w: rightW * 0.5, h: 1.6, zone: 'wet' })
   rooms.push({ name: 'Stairs', x: r2(rightX + rightW * 0.5), y: rightY, w: r2(rightW * 0.5), h: 2.9, zone: 'circulation' })
   rooms.push({ name: 'Laundry', x: rightX, y: r2(rightY + 1.6), w: rightW * 0.5, h: 2.0, zone: 'wet' })
-  const groundUsedY = Math.max(GARAGE_D, rightY + 3.6)
+  const groundUsedY = Math.max(garageW > 0 ? GARAGE_D : 0, rightY + 3.6)
   const targetGroundD = groundArea / W
   const livingD = Math.max(5.2, r2(targetGroundD - groundUsedY))
   const groundD = r2(groundUsedY + livingD)
@@ -207,8 +213,10 @@ function doubleStorey(input: FpInput, W: number): FpStorey[] {
   }
 
   // ——— upper: master suite + minor beds + bath + retreat ———
+  // left bed column (3.4m) + hall, then the master/right column starts clear of both
   const upperW = r2(W * 0.86)
-  const upRightX = HALL_W + 0.6
+  const upLeftW = 3.4
+  const upRightX = upLeftW + HALL_W
   const upRooms: FpRoom[] = []
   const masterD = 3.8
   upRooms.push({ name: 'Master Suite', x: upRightX, y: 0, w: upperW - upRightX, h: masterD, zone: 'bed' })
@@ -218,9 +226,9 @@ function doubleStorey(input: FpInput, W: number): FpStorey[] {
   for (let i = 0; i < Math.max(input.beds - 1, 0); i++) items.push({ name: `Bed ${i + 2}`, depth: 3.2, zone: 'bed' })
   items.splice(1, 0, { name: 'Bathroom', depth: 2.7, zone: 'wet' })
   if (input.living >= 2) items.push({ name: 'Retreat', depth: 3.6, zone: 'living' })
-  const filled = fillColumns(items, 0, 3.4, 0, upRightX, upperW - upRightX, masterD + 2.4)
+  const filled = fillColumns(items, 0, upLeftW, 0, upRightX, upperW - upRightX, masterD + 2.4)
   upRooms.push(...filled.rooms)
-  upRooms.push({ name: '', x: 3.4, y: 0, w: HALL_W, h: filled.maxY, zone: 'circulation' })
+  upRooms.push({ name: '', x: upLeftW, y: 0, w: HALL_W, h: filled.maxY, zone: 'circulation' })
   const upperD = Math.max(filled.maxY, upperArea / upperW)
 
   const g = variant % 2 === 1 ? mirrorX(rooms, W) : rooms
@@ -247,6 +255,38 @@ export function generateFloorplan(input: FpInput): FpPlan {
   const depth = Math.max(...storeys.map((s) => s.depth))
   const areaM2 = storeys.reduce((sum, s) => sum + s.width * s.depth, 0)
   return { storeys, width, depth, areaM2: Math.round(areaM2) }
+}
+
+/** Build floorplan inputs from a package, subtracting the second dwelling's rooms for dual-occ
+ *  so the plan shows the MAIN dwelling only (one shared helper so callers can't drift). */
+export function floorplanInput(pkg: {
+  package_type: string
+  beds: number
+  baths: number
+  cars: number
+  living_areas: number | null
+  has_study: boolean
+  has_alfresco: boolean
+  storeys: number
+  house_area: number | null
+  lot_width: number | null
+  floorplan_variant: number
+  unit_beds: number | null
+  unit_baths: number | null
+}): FpInput {
+  const isDualOcc = pkg.package_type === 'dual_occupancy'
+  return {
+    beds: Math.max(isDualOcc ? pkg.beds - (pkg.unit_beds ?? 0) : pkg.beds, 1),
+    baths: Math.max(isDualOcc ? pkg.baths - (pkg.unit_baths ?? 0) : pkg.baths, 1),
+    cars: pkg.cars,
+    living: pkg.living_areas ?? 1,
+    study: pkg.has_study,
+    alfresco: pkg.has_alfresco,
+    storeys: pkg.storeys,
+    houseArea: pkg.house_area ?? 200,
+    lotWidth: pkg.lot_width,
+    variant: pkg.floorplan_variant,
+  }
 }
 
 /** Mirror a storey left-to-right (the industry-standard "flip plan" option). */

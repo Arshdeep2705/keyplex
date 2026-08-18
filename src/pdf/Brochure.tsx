@@ -2,13 +2,14 @@ import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/
 import type { Pkg } from '../lib/types'
 import { TYPE_LABEL, toSquares } from '../lib/types'
 import {
+  HEADLINE_RATE,
   dutiableValue,
   dutyWithConcession,
   estWeeklyRepayment,
   fhog,
   monthlyRepayment,
 } from '../lib/calc'
-import { generateFloorplan, roomSchedule } from '../lib/floorplan'
+import { floorplanInput, generateFloorplan, roomSchedule } from '../lib/floorplan'
 import { money, sqm } from '../lib/format'
 import FloorplanPdf from './FloorplanPdf'
 import fraunces from './fonts/Fraunces-SemiBold.ttf'
@@ -96,21 +97,10 @@ export default function Brochure({ pkg }: { pkg: Pkg }) {
   const dutyInv = dutyWithConcession(pkg.state, dutiable, false)
   const grant = fhog(pkg.state, pkg.price)
   const deposit10 = pkg.price * 0.1
-  const monthly = monthlyRepayment(pkg.price - deposit10, 5.6, 30, false)
+  const monthly = monthlyRepayment(pkg.price - deposit10, HEADLINE_RATE, 30, false)
   const generated = new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })
 
-  const plan = generateFloorplan({
-    beds: pkg.package_type === 'dual_occupancy' ? pkg.beds - (pkg.unit_beds ?? 0) : pkg.beds,
-    baths: pkg.baths,
-    cars: pkg.cars,
-    living: pkg.living_areas ?? 1,
-    study: pkg.has_study,
-    alfresco: pkg.has_alfresco,
-    storeys: pkg.storeys,
-    houseArea: pkg.house_area ?? 200,
-    lotWidth: pkg.lot_width,
-    variant: pkg.floorplan_variant,
-  })
+  const plan = generateFloorplan(floorplanInput(pkg))
   const schedule = roomSchedule(plan)
 
   return (
@@ -296,7 +286,7 @@ export default function Brochure({ pkg }: { pkg: Pkg }) {
               <Text style={s.h3}>Repayment snapshot*</Text>
               <KV k="Deposit (10%)" v={money(Math.round(deposit10))} />
               <KV k="Loan amount" v={money(Math.round(pkg.price - deposit10))} />
-              <KV k="Monthly (5.60% p.a., 30yr P&I)" v={money(Math.round(monthly))} />
+              <KV k={`Monthly (${HEADLINE_RATE.toFixed(2)}% p.a., 30yr P&I)`} v={money(Math.round(monthly))} />
               <View style={[s.tableRow, { borderBottomWidth: 0 }]}>
                 <Text style={{ color: MUTED, fontSize: 9 }}>Per week</Text>
                 <Text style={{ fontWeight: 600, fontSize: 9, color: GROWTH }}>{money(Math.round(weekly))}</Text>

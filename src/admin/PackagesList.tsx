@@ -18,30 +18,55 @@ const STATUS_STYLE: Record<string, string> = {
 export default function PackagesList() {
   const [pkgs, setPkgs] = useState<Pkg[]>([])
   const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState('')
 
-  const load = () => fetchAllPackages().then(setPkgs).catch(() => {})
+  const load = () =>
+    fetchAllPackages()
+      .then((data) => {
+        setPkgs(data)
+        setError('')
+      })
+      .catch(() => setError("Couldn't load packages — check your connection and refresh."))
   useEffect(() => {
     load()
   }, [])
 
   async function toggleStatus(p: Pkg) {
+    // only draft ⇄ published is a one-click toggle; sold/reserved/archived are deliberate states
+    if (p.status !== 'published' && p.status !== 'draft') return
+    if (p.status === 'draft' && (!p.suburb || !p.price)) {
+      setError(`"${p.title}" needs a suburb and a price before it can go live — open it and finish the details.`)
+      return
+    }
     setBusy(p.id)
-    const next = p.status === 'published' ? 'draft' : 'published'
-    await savePackage({
-      id: p.id,
-      status: next,
-      published_at: next === 'published' ? new Date().toISOString() : p.published_at,
-    })
-    await load()
-    setBusy(null)
+    setError('')
+    try {
+      const next = p.status === 'published' ? 'draft' : 'published'
+      await savePackage({
+        id: p.id,
+        status: next,
+        published_at: next === 'published' ? new Date().toISOString() : p.published_at,
+      })
+      await load()
+    } catch {
+      setError('Status change failed — please try again.')
+    } finally {
+      setBusy(null)
+    }
   }
 
   async function remove(p: Pkg) {
     if (!confirm(`Delete "${p.title}" permanently? This cannot be undone.`)) return
     setBusy(p.id)
-    await deletePackage(p.id)
-    await load()
-    setBusy(null)
+    setError('')
+    try {
+      await deletePackage(p.id)
+      await load()
+    } catch {
+      setError('Delete failed — please try again.')
+    } finally {
+      setBusy(null)
+    }
   }
 
   return (
@@ -58,6 +83,8 @@ export default function PackagesList() {
           <Plus size={16} /> New package
         </Link>
       </div>
+
+      {error && <p className="mt-4 rounded-lg bg-danger-soft px-4 py-2.5 text-[13px] font-medium text-danger">{error}</p>}
 
       <div className="mt-8 overflow-x-auto rounded-2xl border border-line bg-card">
         <table className="w-full min-w-[760px]">
@@ -104,15 +131,21 @@ export default function PackagesList() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1.5">
-                    <a
-                      href={`${import.meta.env.BASE_URL}packages/${p.slug}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      title="View live"
-                      className="rounded-lg p-2 text-muted transition-colors hover:bg-cream hover:text-ink"
-                    >
-                      <Eye size={15} />
-                    </a>
+                    {p.status === 'published' ? (
+                      <a
+                        href={`${import.meta.env.BASE_URL}packages/${p.slug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="View live"
+                        className="rounded-lg p-2 text-muted transition-colors hover:bg-cream hover:text-ink"
+                      >
+                        <Eye size={15} />
+                      </a>
+                    ) : (
+                      <span title="Not live" className="cursor-not-allowed rounded-lg p-2 text-line">
+                        <Eye size={15} />
+                      </span>
+                    )}
                     <Link
                       to={`/admin/packages/${p.id}`}
                       title="Edit"

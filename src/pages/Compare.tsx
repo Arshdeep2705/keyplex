@@ -9,12 +9,18 @@ import { money, sqm } from '../lib/format'
 import { useCompare } from '../lib/CompareContext'
 
 export default function Compare() {
-  const { slugs, toggle } = useCompare()
+  const { slugs, toggle, prune } = useCompare()
   const [all, setAll] = useState<Pkg[]>([])
 
   useEffect(() => {
     document.title = 'Compare Packages — Keyplex'
-    fetchPublished().then(setAll).catch(() => {})
+    fetchPublished()
+      .then((data) => {
+        setAll(data)
+        prune(data.map((p) => p.slug)) // drop unpublished/renamed packages from the saved selection
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const pkgs = slugs.map((s) => all.find((p) => p.slug === s)).filter(Boolean) as Pkg[]
@@ -141,7 +147,7 @@ export default function Compare() {
               </tbody>
             </table>
             <p className="mt-5 text-[11.5px] text-mist">
-              *Repayments assume 10% deposit, 5.60% p.a., 30-year P&amp;I. FHB duty uses 2026 VIC/SA
+              *Repayments assume 10% deposit, 5.90% p.a., 30-year P&amp;I. FHB duty uses 2026 VIC/SA
               first-home-buyer rules for new builds (two-part contracts assessed on land only); subject to
               eligibility. Rental appraisals are projections, not guarantees.
             </p>

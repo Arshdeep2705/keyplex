@@ -96,6 +96,9 @@ export function hgsEligible(state: string, price: number, metro = true): boolean
   return false
 }
 
+/** Average variable owner-occupier rate used for headline "From $X/wk" figures (mid-2026). */
+export const HEADLINE_RATE = 5.9
+
 /** Monthly loan repayment (principal & interest, or interest-only). */
 export function monthlyRepayment(
   principal: number,
@@ -105,128 +108,8 @@ export function monthlyRepayment(
 ): number {
   const r = annualRatePct / 100 / 12
   if (principal <= 0) return 0
-  if (interestOnly || r === 0) return principal * r
+  if (interestOnly) return principal * r
+  if (r === 0) return principal / (years * 12)
   const n = years * 12
   return (principal * r) / (1 - Math.pow(1 + r, -n))
-}
-
-export interface CashflowInputs {
-  price: number
-  weeklyRent: number
-  depositPct: number
-  ratePct: number
-  loanYears: number
-  interestOnly: boolean
-  vacancyPct: number
-  mgmtPct: number
-  insurancePerYear: number
-  ratesPerYear: number
-  maintenancePerYear: number
-  utilitiesPerYear: number
-}
-
-export interface CashflowResult {
-  loanAmount: number
-  deposit: number
-  grossAnnualRent: number
-  collectedRent: number
-  mgmtFee: number
-  totalExpenses: number
-  annualLoanCost: number
-  netAnnualCashflow: number
-  weeklyCashflow: number
-  grossYieldPct: number
-  netYieldPct: number
-}
-
-export function cashflow(i: CashflowInputs): CashflowResult {
-  const deposit = i.price * (i.depositPct / 100)
-  const loanAmount = i.price - deposit
-  const grossAnnualRent = i.weeklyRent * 52
-  const collectedRent = grossAnnualRent * (1 - i.vacancyPct / 100)
-  const mgmtFee = collectedRent * (i.mgmtPct / 100)
-  const opex = mgmtFee + i.insurancePerYear + i.ratesPerYear + i.maintenancePerYear + i.utilitiesPerYear
-  const annualLoanCost = monthlyRepayment(loanAmount, i.ratePct, i.loanYears, i.interestOnly) * 12
-  const netAnnualCashflow = collectedRent - opex - annualLoanCost
-  const netYield = ((collectedRent - opex) / i.price) * 100
-  return {
-    loanAmount,
-    deposit,
-    grossAnnualRent,
-    collectedRent,
-    mgmtFee,
-    totalExpenses: opex,
-    annualLoanCost,
-    netAnnualCashflow,
-    weeklyCashflow: netAnnualCashflow / 52,
-    grossYieldPct: (grossAnnualRent / i.price) * 100,
-    netYieldPct: netYield,
-  }
-}
-
-export interface ProjectionPoint {
-  year: number
-  propertyValue: number
-  loanBalance: number
-  equity: number
-  annualCashflow: number
-  cumulativeCashflow: number
-}
-
-/** 10-year projection: value grows, rent grows, loan amortises (if P&I). */
-export function project(
-  i: CashflowInputs,
-  capitalGrowthPct: number,
-  rentGrowthPct = 3,
-  years = 10,
-): ProjectionPoint[] {
-  const deposit = i.price * (i.depositPct / 100)
-  let loanBalance = i.price - deposit
-  const monthlyRate = i.ratePct / 100 / 12
-  const repayment = monthlyRepayment(loanBalance, i.ratePct, i.loanYears, i.interestOnly)
-  let value = i.price
-  let weeklyRent = i.weeklyRent
-  let cumulative = 0
-  const points: ProjectionPoint[] = []
-
-  for (let y = 1; y <= years; y++) {
-    value *= 1 + capitalGrowthPct / 100
-    if (y > 1) weeklyRent *= 1 + rentGrowthPct / 100
-    if (!i.interestOnly) {
-      for (let m = 0; m < 12; m++) {
-        const interest = loanBalance * monthlyRate
-        loanBalance = Math.max(0, loanBalance - (repayment - interest))
-      }
-    }
-    const cf = cashflow({ ...i, weeklyRent })
-    cumulative += cf.netAnnualCashflow
-    points.push({
-      year: y,
-      propertyValue: value,
-      loanBalance,
-      equity: value - loanBalance,
-      annualCashflow: cf.netAnnualCashflow,
-      cumulativeCashflow: cumulative,
-    })
-  }
-  return points
-}
-
-/** Sensible expense defaults per package type (owner-paid utilities for co-living). */
-export function defaultCashflowInputs(pkg: Pkg): CashflowInputs {
-  const isMultiTenancy = pkg.package_type === 'coliving' || pkg.package_type === 'rooming_house'
-  return {
-    price: pkg.price,
-    weeklyRent: pkg.total_weekly_rent ?? 0,
-    depositPct: isMultiTenancy && pkg.package_type === 'rooming_house' ? 35 : 20,
-    ratePct: 6.4,
-    loanYears: 30,
-    interestOnly: true,
-    vacancyPct: pkg.vacancy_rate != null ? Math.max(pkg.vacancy_rate, 2) : isMultiTenancy ? 5 : 2,
-    mgmtPct: isMultiTenancy ? 15 : 8,
-    insurancePerYear: isMultiTenancy ? 3_500 : 1_800,
-    ratesPerYear: 3_200,
-    maintenancePerYear: isMultiTenancy ? 3_000 : 1_500,
-    utilitiesPerYear: isMultiTenancy ? 4_200 : 0,
-  }
 }

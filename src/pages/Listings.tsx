@@ -129,20 +129,21 @@ export default function Listings() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Suburb, estate or design…"
+                aria-label="Search by suburb, estate or design"
                 className="field !py-2.5 !pl-9 text-[13.5px] lg:!w-52"
               />
             </div>
-            <select value={state} onChange={(e) => setState(e.target.value)} className="field !py-2.5 text-[13.5px] lg:!w-auto">
+            <select value={state} onChange={(e) => setState(e.target.value)} aria-label="Filter by state" className="field !py-2.5 text-[13.5px] lg:!w-auto">
               <option value="all">All states</option>
               <option value="VIC">VIC</option>
               <option value="SA">SA</option>
             </select>
-            <select value={storeys} onChange={(e) => setStoreys(Number(e.target.value))} className="field !py-2.5 text-[13.5px] lg:!w-auto">
+            <select value={storeys} onChange={(e) => setStoreys(Number(e.target.value))} aria-label="Filter by storeys" className="field !py-2.5 text-[13.5px] lg:!w-auto">
               <option value={0}>Any storeys</option>
               <option value={1}>Single storey</option>
               <option value={2}>Double storey</option>
             </select>
-            <select value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} className="field !py-2.5 text-[13.5px] lg:!w-auto">
+            <select value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} aria-label="Maximum price" className="field !py-2.5 text-[13.5px] lg:!w-auto">
               <option value={0}>Any price</option>
               {PRICE_STEPS.map((p) => (
                 <option key={p} value={p}>
@@ -150,7 +151,7 @@ export default function Listings() {
                 </option>
               ))}
             </select>
-            <select value={minBeds} onChange={(e) => setMinBeds(Number(e.target.value))} className="field !py-2.5 text-[13.5px] lg:!w-auto">
+            <select value={minBeds} onChange={(e) => setMinBeds(Number(e.target.value))} aria-label="Minimum bedrooms" className="field !py-2.5 text-[13.5px] lg:!w-auto">
               <option value={0}>Any beds</option>
               {[3, 4, 5].map((b) => (
                 <option key={b} value={b}>
@@ -158,7 +159,7 @@ export default function Listings() {
                 </option>
               ))}
             </select>
-            <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="field !py-2.5 text-[13.5px] lg:!w-auto">
+            <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort packages" className="field !py-2.5 text-[13.5px] lg:!w-auto">
               <option value="newest">Newest first</option>
               <option value="price_asc">Price: low → high</option>
               <option value="price_desc">Price: high → low</option>

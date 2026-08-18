@@ -68,9 +68,9 @@ export default function FloorplanPdf({ storey, maxW, maxH }: { storey: FpStorey;
         )
       })}
       <Rect x={ox} y={oy} width={storey.width * scale} height={storey.depth * scale} fill="none" stroke="#16241D" strokeWidth={2.2} />
-      {/* overall dims */}
-      <Line x1={ox} y1={oy - 10} x2={ox + storey.width * scale} y2={oy - 10} stroke="#8d9a92" strokeWidth={0.7} />
-      <SvgText x={ox + (storey.width * scale) / 2} y={oy - 13} textAnchor="middle" style={{ fontSize: 6, fontFamily: 'Archivo', fill: '#5A655E' }}>
+      {/* overall dims — anchored above ALL content (the porch extends above the front boundary) */}
+      <Line x1={ox} y1={pad - 8} x2={ox + storey.width * scale} y2={pad - 8} stroke="#8d9a92" strokeWidth={0.7} />
+      <SvgText x={ox + (storey.width * scale) / 2} y={pad - 11} textAnchor="middle" style={{ fontSize: 6, fontFamily: 'Archivo', fill: '#5A655E' }}>
         {`${storey.width.toFixed(1)} m`}
       </SvgText>
       <Line x1={ox - 10} y1={oy} x2={ox - 10} y2={oy + storey.depth * scale} stroke="#8d9a92" strokeWidth={0.7} />

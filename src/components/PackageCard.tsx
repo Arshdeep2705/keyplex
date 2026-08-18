@@ -7,8 +7,9 @@ import { daysAgo, money, moneyShort } from '../lib/format'
 import { useCompare } from '../lib/CompareContext'
 
 export default function PackageCard({ pkg }: { pkg: Pkg }) {
-  const { toggle, has } = useCompare()
+  const { toggle, has, isFull } = useCompare()
   const inCompare = has(pkg.slug)
+  const compareBlocked = isFull && !inCompare
   const weekly = estWeeklyRepayment(pkg.price)
 
   return (
@@ -42,11 +43,20 @@ export default function PackageCard({ pkg }: { pkg: Pkg }) {
 
       <button
         onClick={() => toggle(pkg.slug)}
-        title={inCompare ? 'Remove from compare' : 'Add to compare'}
+        title={
+          inCompare
+            ? 'Remove from compare'
+            : compareBlocked
+              ? 'Compare is full (3 max) — remove one first'
+              : 'Add to compare'
+        }
+        aria-label={inCompare ? `Remove ${pkg.title} from compare` : `Add ${pkg.title} to compare`}
         className={`absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur transition-all ${
           inCompare
             ? 'border-brass bg-brass text-pine'
-            : 'border-paper/40 bg-ink/40 text-paper hover:border-brass hover:text-brass-bright'
+            : compareBlocked
+              ? 'cursor-not-allowed border-paper/25 bg-ink/40 text-paper/40'
+              : 'border-paper/40 bg-ink/40 text-paper hover:border-brass hover:text-brass-bright'
         }`}
       >
         {inCompare ? <Check size={16} /> : <ArrowLeftRight size={15} />}

@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Check, Loader2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
-const BUYER_TYPES = ['Cashflow investor', 'SMSF buyer', 'First investment', 'NDIS / SDA curious']
+const BUYER_TYPES = ['First home buyer', 'Upgrading / next home', 'Investor', 'Not sure yet']
 const TIMEFRAMES = ['Ready now', '1–3 months', '3–6 months', 'Researching']
 
 export default function LeadForm({
@@ -22,6 +22,7 @@ export default function LeadForm({
   const [error, setError] = useState('')
   const [f, setF] = useState({ name: '', email: '', phone: '', message: '', preferred_time: '' })
   const [q, setQ] = useState({ buyer: '', deposit: '', timeframe: '' })
+  const uid = useId()
 
   const set = (k: string, v: string) => setF((p) => ({ ...p, [k]: v }))
 
@@ -50,17 +51,24 @@ export default function LeadForm({
   }
 
   async function submitQualifiers() {
-    if (leadId && (q.buyer || q.deposit || q.timeframe)) {
-      const text = [
-        q.buyer && `Buyer type: ${q.buyer}`,
-        q.deposit && `Deposit ready: ${q.deposit}`,
-        q.timeframe && `Timeframe: ${q.timeframe}`,
-      ]
-        .filter(Boolean)
-        .join('\n')
-      await supabase.rpc('kp_add_lead_qualifiers', { p_lead_id: leadId, p_qualifiers: text })
+    setBusy(true)
+    try {
+      if (leadId && (q.buyer || q.deposit || q.timeframe)) {
+        const text = [
+          q.buyer && `Buyer type: ${q.buyer}`,
+          q.deposit && `Deposit ready: ${q.deposit}`,
+          q.timeframe && `Timeframe: ${q.timeframe}`,
+        ]
+          .filter(Boolean)
+          .join('\n')
+        await supabase.rpc('kp_add_lead_qualifiers', { p_lead_id: leadId, p_qualifiers: text })
+      }
+    } catch {
+      // qualifiers are optional — the lead itself is already captured
+    } finally {
+      setBusy(false)
+      setStep('done')
     }
-    setStep('done')
   }
 
   const labelCls = dark ? 'field-label !text-paper/60' : 'field-label'
@@ -76,7 +84,7 @@ export default function LeadForm({
           Thanks {f.name.split(' ')[0]} — you're in the queue.
         </h3>
         <p className={`mt-2 text-[14px] ${dark ? 'text-paper/70' : 'text-muted'}`}>
-          A Keyplex strategist will call you shortly. We aim to respond within minutes, not days.
+          A Keyplex consultant will call you shortly. We aim to respond within minutes, not days.
         </p>
       </div>
     )
@@ -90,7 +98,7 @@ export default function LeadForm({
           Help us match the right stock to you
         </h3>
         <p className={`mt-1 text-[13px] ${dark ? 'text-paper/60' : 'text-muted'}`}>
-          Optional — 10 seconds. SMSF buyers, for example, need single-part contracts.
+          Optional — 10 seconds. First home buyers, for example, unlock different grants and duty savings.
         </p>
         <div className="mt-5 space-y-4">
           <div>
@@ -159,8 +167,10 @@ export default function LeadForm({
           <div className="flex items-center gap-3 pt-1">
             <button
               onClick={submitQualifiers}
-              className="rounded-lg bg-pine px-5 py-2.5 text-[14px] font-semibold text-paper transition-all hover:shadow-lift"
+              disabled={busy}
+              className="flex items-center gap-2 rounded-lg bg-pine px-5 py-2.5 text-[14px] font-semibold text-paper transition-all hover:shadow-lift disabled:opacity-60"
             >
+              {busy && <Loader2 size={14} className="animate-spin" />}
               Finish
             </button>
             <button
@@ -182,20 +192,20 @@ export default function LeadForm({
     >
       <div className={`grid gap-4 ${compact ? '' : 'sm:grid-cols-2'}`}>
         <div>
-          <label className={labelCls}>Name *</label>
-          <input required className={fieldCls} value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="Full name" />
+          <label htmlFor={`${uid}-name`} className={labelCls}>Name *</label>
+          <input id={`${uid}-name`} required autoComplete="name" className={fieldCls} value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="Full name" />
         </div>
         <div>
-          <label className={labelCls}>Email *</label>
-          <input required type="email" className={fieldCls} value={f.email} onChange={(e) => set('email', e.target.value)} placeholder="you@email.com" />
+          <label htmlFor={`${uid}-email`} className={labelCls}>Email *</label>
+          <input id={`${uid}-email`} required type="email" autoComplete="email" className={fieldCls} value={f.email} onChange={(e) => set('email', e.target.value)} placeholder="you@email.com" />
         </div>
         <div>
-          <label className={labelCls}>Phone</label>
-          <input className={fieldCls} value={f.phone} onChange={(e) => set('phone', e.target.value)} placeholder="04xx xxx xxx" />
+          <label htmlFor={`${uid}-phone`} className={labelCls}>Phone</label>
+          <input id={`${uid}-phone`} type="tel" autoComplete="tel" className={fieldCls} value={f.phone} onChange={(e) => set('phone', e.target.value)} placeholder="04xx xxx xxx" />
         </div>
         <div>
-          <label className={labelCls}>Best time to call</label>
-          <select className={fieldCls} value={f.preferred_time} onChange={(e) => set('preferred_time', e.target.value)}>
+          <label htmlFor={`${uid}-time`} className={labelCls}>Best time to call</label>
+          <select id={`${uid}-time`} className={fieldCls} value={f.preferred_time} onChange={(e) => set('preferred_time', e.target.value)}>
             <option value="">Any time</option>
             <option>Morning</option>
             <option>Afternoon</option>
@@ -204,8 +214,8 @@ export default function LeadForm({
         </div>
       </div>
       <div className="mt-4">
-        <label className={labelCls}>Message</label>
-        <textarea rows={3} className={fieldCls} value={f.message} onChange={(e) => set('message', e.target.value)} placeholder="Tell us about your goals…" />
+        <label htmlFor={`${uid}-msg`} className={labelCls}>Message</label>
+        <textarea id={`${uid}-msg`} rows={3} className={fieldCls} value={f.message} onChange={(e) => set('message', e.target.value)} placeholder="Tell us about your goals…" />
       </div>
       {error && <p className="mt-3 text-[13px] font-medium text-danger">{error}</p>}
       <button

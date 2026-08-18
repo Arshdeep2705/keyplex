@@ -17,7 +17,11 @@ export default function Leads() {
   }, [])
 
   async function setStatus(id: string, status: Lead['status']) {
-    await updateLead(id, { status })
+    try {
+      await updateLead(id, { status })
+    } catch {
+      // fall through — reload below resyncs the select with what the DB actually holds
+    }
     await load()
   }
 

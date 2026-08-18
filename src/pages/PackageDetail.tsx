@@ -21,12 +21,13 @@ import {
 import type { Pkg } from '../lib/types'
 import { TYPE_LABEL, toSquares } from '../lib/types'
 import { fetchBySlug, fetchPublished, incrementViews } from '../lib/data'
-import { estWeeklyRepayment } from '../lib/calc'
-import { generateFloorplan, roomSchedule } from '../lib/floorplan'
+import { HEADLINE_RATE, estWeeklyRepayment } from '../lib/calc'
+import { floorplanInput, generateFloorplan, roomSchedule } from '../lib/floorplan'
 import { money, moneyShort, sqm } from '../lib/format'
 import { useCompare } from '../lib/CompareContext'
 import Gallery from '../components/Gallery'
 import FloorplanSVG from '../components/FloorplanSVG'
+import ListingMap from '../components/ListingMap'
 import CalculatorPanel from '../components/CalculatorPanel'
 import TrustCard from '../components/TrustCard'
 import InclusionsAccordion from '../components/InclusionsAccordion'
@@ -51,38 +52,34 @@ export default function PackageDetail() {
   const [pkg, setPkg] = useState<Pkg | null | undefined>(undefined)
   const [similar, setSimilar] = useState<Pkg[]>([])
   const [pdfBusy, setPdfBusy] = useState<'download' | 'view' | null>(null)
+  const [pdfError, setPdfError] = useState('')
   const { toggle, has } = useCompare()
 
   useEffect(() => {
     if (!slug) return
+    let stale = false
     setPkg(undefined)
     fetchBySlug(slug)
       .then((p) => {
+        if (stale) return
         setPkg(p)
         if (p) {
           document.title = `${p.title} — Keyplex`
           incrementViews(slug)
-          fetchPublished().then((all) => setSimilar(all.filter((x) => x.slug !== slug).slice(0, 3)))
+          fetchPublished().then((all) => {
+            if (!stale) setSimilar(all.filter((x) => x.slug !== slug).slice(0, 3))
+          })
         }
       })
-      .catch(() => setPkg(null))
+      .catch(() => {
+        if (!stale) setPkg(null)
+      })
+    return () => {
+      stale = true
+    }
   }, [slug])
 
-  const plan = useMemo(() => {
-    if (!pkg) return null
-    return generateFloorplan({
-      beds: pkg.package_type === 'dual_occupancy' ? pkg.beds - (pkg.unit_beds ?? 0) : pkg.beds,
-      baths: pkg.baths,
-      cars: pkg.cars,
-      living: pkg.living_areas ?? 1,
-      study: pkg.has_study,
-      alfresco: pkg.has_alfresco,
-      storeys: pkg.storeys,
-      houseArea: pkg.house_area ?? 200,
-      lotWidth: pkg.lot_width,
-      variant: pkg.floorplan_variant,
-    })
-  }, [pkg])
+  const plan = useMemo(() => (pkg ? generateFloorplan(floorplanInput(pkg)) : null), [pkg])
 
   if (pkg === undefined) {
     return (
@@ -111,10 +108,17 @@ export default function PackageDetail() {
   async function handlePdf(mode: 'download' | 'view') {
     if (!pkg) return
     setPdfBusy(mode)
+    setPdfError('')
+    // open the window synchronously inside the click gesture so popup blockers allow it
+    const win = mode === 'view' ? window.open('', '_blank') : null
     try {
       const { downloadBrochure, brochureBlobUrl } = await import('../pdf/generateBrochure')
       if (mode === 'download') await downloadBrochure(pkg)
-      else window.open(await brochureBlobUrl(pkg), '_blank')
+      else if (win) win.location.href = await brochureBlobUrl(pkg)
+      else window.location.href = await brochureBlobUrl(pkg)
+    } catch {
+      win?.close()
+      setPdfError('The brochure could not be generated — please try again, or call us on 1300 539 759.')
     } finally {
       setPdfBusy(null)
     }
@@ -174,7 +178,31 @@ export default function PackageDetail() {
         </div>
       </section>
 
-      <section className="bg-paper">
+      {/* sticky mobile action bar */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-card/95 px-4 py-3 backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-lg items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="tnum font-display text-[19px] font-semibold leading-tight text-ink">{money(pkg.price)}</p>
+            <p className="tnum text-[11px] text-muted">From {money(Math.round(weekly))}/wk repayments*</p>
+          </div>
+          <button
+            onClick={() => handlePdf('download')}
+            disabled={pdfBusy !== null}
+            aria-label="Download brochure"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-card text-ink disabled:opacity-60"
+          >
+            {pdfBusy === 'download' ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}
+          </button>
+          <a
+            href="#enquire"
+            className="rounded-lg bg-brass px-6 py-3 text-[14.5px] font-bold text-pine transition-colors hover:bg-brass-bright"
+          >
+            Enquire
+          </a>
+        </div>
+      </div>
+
+      <section className="bg-paper pb-20 lg:pb-0">
         <div className="mx-auto max-w-7xl px-5 py-10 lg:px-8">
           {/* actions row */}
           <div className="mb-8 flex flex-wrap items-center gap-3">
@@ -207,6 +235,9 @@ export default function PackageDetail() {
               <Eye size={14} /> {pkg.views_count + 1} views
             </span>
           </div>
+          {pdfError && (
+            <p className="mb-6 rounded-lg bg-danger-soft px-4 py-2.5 text-[13px] font-medium text-danger">{pdfError}</p>
+          )}
 
           <div className="grid gap-10 lg:grid-cols-[1.5fr_1fr]">
             {/* left column (min-w-0 lets inner tables scroll instead of blowing out the page) */}
@@ -281,6 +312,30 @@ export default function PackageDetail() {
               </div>
 
               <InclusionsAccordion groups={pkg.inclusions ?? []} />
+
+              {/* location */}
+              {pkg.lat != null && pkg.lng != null && (
+                <div>
+                  <h2 className="font-display text-[24px] font-semibold text-ink">
+                    Location — {pkg.suburb}, {pkg.state}
+                  </h2>
+                  <p className="mb-4 mt-2 text-[14px] text-muted">
+                    {pkg.estate ? `${pkg.estate} estate · ` : ''}
+                    {pkg.address_hint ?? ''}
+                  </p>
+                  <ListingMap
+                    lat={pkg.lat}
+                    lng={pkg.lng}
+                    label={pkg.title}
+                    height={360}
+                    zoom={14}
+                  />
+                  <p className="mt-2.5 text-[11.5px] text-mist">
+                    Pin shows the estate / lot location and is indicative — exact siting is confirmed at
+                    contract. Click the map to enable scroll zoom.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* right column */}
@@ -316,8 +371,8 @@ export default function PackageDetail() {
           )}
 
           <p className="mt-12 text-[11.5px] leading-relaxed text-mist">
-            *Repayment estimates assume a 10% deposit, 5.60% p.a. and a 30-year principal &amp; interest
-            loan — adjust them in the calculator above. Concept floor plans are auto-generated and
+            *Repayment estimates assume a 10% deposit, {HEADLINE_RATE.toFixed(2)}% p.a. and a 30-year
+            principal &amp; interest loan — adjust them in the calculator above. Concept floor plans are auto-generated and
             indicative only; final working drawings are prepared by the builder. Images are illustrative
             and may include upgrade items. Price subject to land availability and developer approval.
             General information only; seek independent financial and legal advice.

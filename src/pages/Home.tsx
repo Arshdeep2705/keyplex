@@ -255,7 +255,7 @@ export default function Home() {
                 </motion.div>
               </div>
               <p className="tnum mt-4 text-[13px] text-muted">
-                Established home at $769k: ≈ $41,240 duty · This package (investor): ≈ $18,170 ·{' '}
+                Established home at $769k: ≈ $41,210 duty · This package (investor): ≈ $18,170 ·{' '}
                 <span className="font-semibold text-growth">First home buyer: $0</span>
               </p>
             </div>
@@ -264,6 +264,7 @@ export default function Home() {
       </section>
 
       {/* ——— FEATURED PACKAGES ——— */}
+      {featured.length > 0 && (
       <section className="bg-paper">
         <div className="mx-auto max-w-7xl px-5 py-20 lg:px-8">
           <Reveal className="flex flex-wrap items-end justify-between gap-6">
@@ -290,6 +291,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ——— DIFFERENTIATORS ——— */}
       <section className="blueprint grain relative bg-pine text-paper">

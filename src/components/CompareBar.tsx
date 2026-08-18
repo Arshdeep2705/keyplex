@@ -8,7 +8,7 @@ export default function CompareBar() {
   if (slugs.length === 0 || pathname === '/compare') return null
 
   return (
-    <div className="fade-up fixed bottom-5 left-1/2 z-40 -translate-x-1/2">
+    <div className="fade-up fixed bottom-24 left-1/2 z-40 -translate-x-1/2 lg:bottom-5">
       <div className="flex items-center gap-3 rounded-full border border-line-dark/50 bg-pine px-5 py-3 text-paper shadow-lift">
         <ArrowLeftRight size={16} className="text-brass-bright" />
         <span className="text-[14px] font-medium">

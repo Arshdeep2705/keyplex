@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Calculator } from 'lucide-react'
 import type { Pkg } from '../lib/types'
-import { dutiableValue, dutyWithConcession, fhog, monthlyRepayment } from '../lib/calc'
+import { HEADLINE_RATE, dutiableValue, dutyWithConcession, fhog, hgsEligible, monthlyRepayment } from '../lib/calc'
 import { money } from '../lib/format'
 
 function Slider({
@@ -36,6 +36,8 @@ function Slider({
         max={max}
         step={step}
         value={value}
+        aria-label={label}
+        aria-valuetext={format(value)}
         style={{ '--fill': `${fill}%` } as React.CSSProperties}
         onChange={(e) => onChange(Number(e.target.value))}
       />
@@ -45,7 +47,7 @@ function Slider({
 
 export default function CalculatorPanel({ pkg }: { pkg: Pkg }) {
   const [depositPct, setDepositPct] = useState(10)
-  const [ratePct, setRatePct] = useState(5.9)
+  const [ratePct, setRatePct] = useState(HEADLINE_RATE)
   const [years, setYears] = useState(30)
   const [isFHB, setIsFHB] = useState(true)
 
@@ -96,11 +98,12 @@ export default function CalculatorPanel({ pkg }: { pkg: Pkg }) {
             </div>
           </div>
 
-          {depositPct < 20 && (
+          {depositPct < 20 && hgsEligible(pkg.state, pkg.price) && (
             <p className="rounded-xl bg-brass-soft px-4 py-3 text-[12px] leading-relaxed text-ink/80">
               Under 20% deposit? This package sits inside the federal <strong>Home Guarantee Scheme</strong>{' '}
-              price caps — eligible buyers purchase with just <strong>5% deposit ({money(Math.round(pkg.price * 0.05))})</strong>{' '}
-              and pay no LMI. No income caps since Oct 2025.
+              metro price caps — eligible buyers purchase with just <strong>5% deposit ({money(Math.round(pkg.price * 0.05))})</strong>{' '}
+              and pay no LMI. No income caps since Oct 2025. Regional cap thresholds differ — we confirm
+              your eligibility on the call.
             </p>
           )}
         </div>

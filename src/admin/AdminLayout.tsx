@@ -88,7 +88,11 @@ export default function AdminLayout() {
       .select('uid')
       .eq('uid', session.user.id)
       .maybeSingle()
-      .then(({ data }) => setIsAdmin(!!data))
+      .then(({ data, error }) => {
+        // a transient network/RLS error must not lock a real admin out — only a clean null row does
+        if (error) setIsAdmin(undefined)
+        else setIsAdmin(!!data)
+      })
   }, [session])
 
   if (session === undefined) {
