@@ -14,7 +14,7 @@ const PIN_SVG = `
 <svg width="34" height="44" viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg">
   <path d="M17 0C7.6 0 0 7.6 0 17c0 12.7 17 27 17 27s17-14.3 17-27C34 7.6 26.4 0 17 0z" fill="#16241D"/>
   <path d="M17 2C8.7 2 2 8.7 2 17c0 11 15 24.3 15 24.3S32 28 32 17C32 8.7 25.3 2 17 2z" fill="#16241D" stroke="#CBA76F" stroke-width="1.5"/>
-  <path d="M11 12.5h3v7.9l4.5-4.9h3.7l-4.9 5.2 5.3 6.8h-3.7l-4.5-4.9v4.9h-3z" fill="#CBA76F"/>
+  <path d="M17 9.8 25 17.2h-2.5v7.4h-11V17.2H9z" fill="#CBA76F"/>
 </svg>`
 
 const pinIcon = L.divIcon({
@@ -37,7 +37,21 @@ interface MapProps {
 /* ————— Google engine ————— */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare global { interface Window { google?: any } }
+declare global { interface Window { google?: any; gm_authFailure?: () => void } }
+
+/**
+ * Google reports key problems (RefererNotAllowedMapError, billing, quota) through this
+ * global — the <script> still loads fine, so s.onerror never fires. Without this hook a
+ * rejected key leaves an empty grey box instead of falling back to the free Leaflet map.
+ */
+let googleAuthFailed = false
+const authFailListeners = new Set<() => void>()
+if (typeof window !== 'undefined') {
+  window.gm_authFailure = () => {
+    googleAuthFailed = true
+    authFailListeners.forEach((fn) => fn())
+  }
+}
 
 let googleLoader: Promise<void> | null = null
 function loadGoogle(key: string): Promise<void> {
@@ -69,7 +83,14 @@ function GoogleListingMap({ lat, lng, label, height = 300, zoom = 15, draggable 
   const stateRef = useRef<{ map: any; marker: any } | null>(null)
   const onMoveRef = useRef(onMove)
   onMoveRef.current = onMove
-  const [failed, setFailed] = useState(false)
+  const [failed, setFailed] = useState(googleAuthFailed)
+
+  useEffect(() => {
+    if (googleAuthFailed) return setFailed(true)
+    const onAuthFail = () => setFailed(true)
+    authFailListeners.add(onAuthFail)
+    return () => { authFailListeners.delete(onAuthFail) }
+  }, [])
 
   useEffect(() => {
     let disposed = false
