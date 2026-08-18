@@ -64,7 +64,7 @@ export default function PackageDetail() {
         if (stale) return
         setPkg(p)
         if (p) {
-          document.title = `${p.title} — Keyplex`
+          document.title = `${p.title} — AU Build Hub`
           incrementViews(slug)
           fetchPublished().then((all) => {
             if (!stale) setSimilar(all.filter((x) => x.slug !== slug).slice(0, 3))

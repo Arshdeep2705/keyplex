@@ -13,7 +13,7 @@ export default function Compare() {
   const [all, setAll] = useState<Pkg[]>([])
 
   useEffect(() => {
-    document.title = 'Compare Packages — Keyplex'
+    document.title = 'Compare Packages — AU Build Hub'
     fetchPublished()
       .then((data) => {
         setAll(data)

@@ -35,7 +35,7 @@ function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="field !border-line-dark !bg-pine !text-paper"
-              placeholder="admin@keyplex.com.au"
+              placeholder="you@yourcompany.com.au"
             />
           </div>
           <div>
@@ -72,7 +72,7 @@ export default function AdminLayout() {
   useEffect(() => setMenuOpen(false), [pathname])
 
   useEffect(() => {
-    document.title = 'Admin — Keyplex'
+    document.title = 'Admin — AU Build Hub'
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => sub.subscription.unsubscribe()

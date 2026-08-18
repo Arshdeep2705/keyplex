@@ -30,14 +30,14 @@ const corridors = [
 const steps = [
   { t: 'Get your borrowing sorted first', b: 'A pre-approval tells you your real budget. Under 20% deposit? The federal Home Guarantee Scheme lets eligible buyers purchase with 5% and no LMI — our broker panel checks your eligibility in one call.' },
   { t: 'Understand the two-part contract', b: 'A house & land package is two contracts: one for the land, one for the build. You only pay stamp duty on the land — and lenders progressively draw down the build loan, so you pay interest only on what has been built.' },
-  { t: 'Stack your incentives', b: 'VIC: $10,000 FHOG for new homes plus duty exemption under $600k dutiable value. SA: $15,000 FHOG and zero stamp duty for new-build FHBs. Every Keyplex listing calculates your exact position.' },
-  { t: 'Lock a fixed-price contract', b: 'The words that matter: "fixed site costs". Without them, rock or soil surprises become your bill. Every Keyplex package locks site costs in the contract price.' },
+  { t: 'Stack your incentives', b: 'VIC: $10,000 FHOG for new homes plus duty exemption under $600k dutiable value. SA: $15,000 FHOG and zero stamp duty for new-build FHBs. Every AU Build Hub listing calculates your exact position.' },
+  { t: 'Lock a fixed-price contract', b: 'The words that matter: "fixed site costs". Without them, rock or soil surprises become your bill. Every AU Build Hub package locks site costs in the contract price.' },
   { t: 'Track title and build stages', b: 'Titled land can start in weeks; untitled land waits for registration. Builds run slab → frame → lockup → fixing → handover with staged payments at each milestone, protected by state deposit caps and builder insurance.' },
 ]
 
 export default function BuyingGuide() {
   useEffect(() => {
-    document.title = 'First Home Buyer Guide — Keyplex'
+    document.title = 'First Home Buyer Guide — AU Build Hub'
   }, [])
 
   return (
@@ -74,7 +74,7 @@ export default function BuyingGuide() {
                 </div>
                 <ul className="mt-5 space-y-3.5 text-[14px] leading-relaxed text-muted">
                   <li><strong className="text-ink">$10,000 First Home Owner Grant</strong> for new homes up to $750,000.</li>
-                  <li><strong className="text-ink">Stamp duty exemption</strong> when the dutiable value is under $600,000 — and on a two-part H&amp;L contract, that's the <em>land price only</em>. Most Keyplex VIC packages sit comfortably under it, so eligible FHBs pay $0.</li>
+                  <li><strong className="text-ink">Stamp duty exemption</strong> when the dutiable value is under $600,000 — and on a two-part H&amp;L contract, that's the <em>land price only</em>. Most AU Build Hub VIC packages sit comfortably under it, so eligible FHBs pay $0.</li>
                   <li><strong className="text-ink">Sliding concession</strong> from $600k–$750k dutiable value.</li>
                   <li><strong className="text-ink">Off-the-plan benefits</strong> mean an established home at the same price can cost $30,000–$40,000 more in duty alone.</li>
                 </ul>
@@ -89,7 +89,7 @@ export default function BuyingGuide() {
                 <ul className="mt-5 space-y-3.5 text-[14px] leading-relaxed text-muted">
                   <li><strong className="text-ink">$15,000 First Home Owner Grant</strong> for new builds — SA removed the property value cap for new homes.</li>
                   <li><strong className="text-ink">Zero stamp duty</strong> for eligible first home buyers building or buying a brand-new home — abolished with no price cap.</li>
-                  <li><strong className="text-ink">The maths:</strong> on a $618,000 Keyplex package in Munno Para, an SA first home buyer keeps roughly $43,000 that an established-home buyer would hand to the government.</li>
+                  <li><strong className="text-ink">The maths:</strong> on a $618,000 AU Build Hub package in Munno Para, an SA first home buyer keeps roughly $43,000 that an established-home buyer would hand to the government.</li>
                 </ul>
               </div>
             </Reveal>
@@ -208,7 +208,7 @@ export default function BuyingGuide() {
               Want your grants and duty position calculated properly?
             </h2>
             <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-muted">
-              Fifteen minutes with a Keyplex consultant: your borrowing power, every incentive you
+              Fifteen minutes with an AU Build Hub consultant: your borrowing power, every incentive you
               qualify for, and a shortlist of packages with the full numbers attached.
             </p>
           </Reveal>

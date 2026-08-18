@@ -72,7 +72,7 @@ function PlanDemo() {
 const faqs = [
   {
     q: 'Is the price really fixed?',
-    a: 'Yes — every Keyplex package is full turnkey with fixed site costs written into the contract: approvals, permits, driveway, landscaping, fencing, blinds and flooring included. The price on the listing is the price you contract at, subject only to land availability.',
+    a: 'Yes — every AU Build Hub package is full turnkey with fixed site costs written into the contract: approvals, permits, driveway, landscaping, fencing, blinds and flooring included. The price on the listing is the price you contract at, subject only to land availability.',
   },
   {
     q: 'How accurate are the floorplans?',
@@ -122,7 +122,7 @@ function Faq() {
 export default function Home() {
   const [featured, setFeatured] = useState<Pkg[]>([])
   useEffect(() => {
-    document.title = 'Keyplex — House & land, packaged in minutes.'
+    document.title = 'AU Build Hub — House & land, packaged in minutes.'
     fetchPublished().then((p) => setFeatured(p.slice(0, 3))).catch(() => {})
   }, [])
 
@@ -297,13 +297,13 @@ export default function Home() {
       <section className="blueprint grain relative bg-pine text-paper">
         <div className="mx-auto max-w-7xl px-5 py-24 lg:px-8">
           <Reveal>
-            <p className="eyebrow">Why Keyplex</p>
+            <p className="eyebrow">Why AU Build Hub</p>
             <h2 className="display-tight mt-3 max-w-2xl font-display text-[32px] font-semibold leading-tight sm:text-[38px]">
               Everything on the table. <em className="text-brass-bright">Before</em> the sales office.
             </h2>
             <p className="mt-4 max-w-2xl text-[15.5px] leading-relaxed text-paper/65">
               Most builder sites hide prices, bury site costs and make you book an appointment to see a
-              floorplan. We built Keyplex to do the opposite.
+              floorplan. We built AU Build Hub to do the opposite.
             </p>
           </Reveal>
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -390,7 +390,7 @@ export default function Home() {
               Tell us your budget. We'll show you <em className="text-brass-bright">exactly</em> what it builds.
             </h2>
             <p className="mt-5 max-w-lg text-[15.5px] leading-relaxed text-paper/65">
-              A quick call with a Keyplex consultant: your borrowing position, the grants you qualify
+              A quick call with an AU Build Hub consultant: your borrowing position, the grants you qualify
               for, and a shortlist of packages with floorplans and full numbers — usually same day.
             </p>
             <p className="mt-8 flex items-center gap-3 text-[15px] text-paper/80">

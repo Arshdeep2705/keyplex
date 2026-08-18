@@ -1,12 +1,12 @@
-# Keyplex — House & land, packaged in minutes.
+# AU Build Hub — House & land, packaged in minutes.
 
 A house & land package platform for a home builder's sales operation across Victoria and South
 Australia. The admin enters the specs — beds, baths, land, price — and a complete package goes live
 in under a minute: auto-generated title, description, **parametric concept floorplan**, and a designed
 PDF brochure.
 
-**Live site:** https://arshdeep2705.github.io/keyplex/
-**Admin panel:** https://arshdeep2705.github.io/keyplex/admin
+**Live site:** https://aubuildhub.com.au/
+**Admin panel:** https://aubuildhub.com.au/admin
 
 ## What makes it different
 

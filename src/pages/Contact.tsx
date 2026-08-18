@@ -5,7 +5,7 @@ import LeadForm from '../components/LeadForm'
 
 export default function Contact() {
   useEffect(() => {
-    document.title = 'Contact — Keyplex'
+    document.title = 'Contact — AU Build Hub'
   }, [])
 
   return (
@@ -29,10 +29,10 @@ export default function Contact() {
                 <span className="text-[13px] text-muted">Mon–Sat, 9am–6pm AEST</span>
               </span>
             </a>
-            <a href="mailto:hello@keyplex.com.au" className="flex items-center gap-4 text-ink transition-colors hover:text-growth">
+            <a href="mailto:hello@aubuildhub.com.au" className="flex items-center gap-4 text-ink transition-colors hover:text-growth">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-cream"><Mail size={18} className="text-brass" /></span>
               <span>
-                <span className="block text-[15px] font-semibold">hello@keyplex.com.au</span>
+                <span className="block text-[15px] font-semibold">hello@aubuildhub.com.au</span>
                 <span className="text-[13px] text-muted">We reply same-day</span>
               </span>
             </a>

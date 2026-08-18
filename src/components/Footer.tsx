@@ -27,7 +27,7 @@ export default function Footer() {
             <p className="eyebrow mb-4">Talk to us</p>
             <ul className="space-y-2.5 text-[14.5px] text-paper/80">
               <li><a className="hover:text-brass-bright" href="tel:1300539759">1300 539 759</a></li>
-              <li><a className="hover:text-brass-bright" href="mailto:hello@keyplex.com.au">hello@keyplex.com.au</a></li>
+              <li><a className="hover:text-brass-bright" href="mailto:hello@aubuildhub.com.au">hello@aubuildhub.com.au</a></li>
               <li>Victoria &amp; South Australia</li>
             </ul>
           </div>
@@ -45,7 +45,7 @@ export default function Footer() {
             not guarantees. Incentive information last verified August 2026.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-[12.5px] text-paper/50">
-            <span>© {new Date().getFullYear()} Keyplex Homes. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} AU Build Hub. All rights reserved.</span>
             <Link to="/admin" className="transition-colors hover:text-brass-bright">
               Partner login
             </Link>

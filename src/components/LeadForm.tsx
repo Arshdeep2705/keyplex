@@ -84,7 +84,7 @@ export default function LeadForm({
           Thanks {f.name.split(' ')[0]} — you're in the queue.
         </h3>
         <p className={`mt-2 text-[14px] ${dark ? 'text-paper/70' : 'text-muted'}`}>
-          A Keyplex consultant will call you shortly. We aim to respond within minutes, not days.
+          An AU Build Hub consultant will call you shortly. We aim to respond within minutes, not days.
         </p>
       </div>
     )

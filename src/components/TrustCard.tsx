@@ -44,7 +44,7 @@ export default function TrustCard({ pkg }: { pkg: Pkg }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-card">
       <div className="border-b border-line bg-cream/60 px-6 py-5">
-        <p className="eyebrow">The Keyplex promise</p>
+        <p className="eyebrow">The AU Build Hub promise</p>
         <h3 className="mt-1 font-display text-[18px] font-semibold text-ink">Certainty, in writing</h3>
       </div>
       <div className="space-y-5 px-6 py-5">

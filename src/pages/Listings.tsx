@@ -39,7 +39,7 @@ export default function Listings() {
     (state !== 'all' ? 1 : 0) + (storeys > 0 ? 1 : 0) + (maxPrice > 0 ? 1 : 0) + (minBeds > 0 ? 1 : 0) + (q.trim() ? 1 : 0)
 
   useEffect(() => {
-    document.title = 'House & Land Packages — Keyplex'
+    document.title = 'House & Land Packages — AU Build Hub'
     fetchPublished().then(setAll).catch(() => setError(true))
   }, [])
 
