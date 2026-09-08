@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Box, Layers2 } from 'lucide-react'
 import { flipStorey, type FpPlan, type FpStorey } from '../lib/floorplan'
+import Floorplan3D from './Floorplan3D'
 
 const SCALE = 26 // viewBox px per metre
 const PAD = 34
@@ -158,8 +160,18 @@ function StoreyPlan({
   )
 }
 
-export default function FloorplanSVG({ plan }: { plan: FpPlan }) {
+export default function FloorplanSVG({
+  plan,
+  defaultView = '2d',
+  frameless = false,
+}: {
+  plan: FpPlan
+  defaultView?: '2d' | '3d'
+  /** drop the card chrome (used inside the dark hero panel) */
+  frameless?: boolean
+}) {
   const [active, setActive] = useState(0)
+  const [view, setView] = useState<'2d' | '3d'>(defaultView)
   const [showDims, setShowDims] = useState(true)
   const [flipped, setFlipped] = useState(false)
   const [seen, setSeen] = useState(false)
@@ -188,17 +200,38 @@ export default function FloorplanSVG({ plan }: { plan: FpPlan }) {
     return flipped ? flipStorey(base) : base
   }, [plan, active, flipped])
 
+  const plan3d = useMemo(
+    () => (flipped ? { ...plan, storeys: plan.storeys.map(flipStorey) } : plan),
+    [plan, flipped],
+  )
+
+  const seg = (on: boolean) =>
+    `flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12.5px] font-semibold transition-all ${
+      on ? 'bg-pine text-paper shadow-sm' : 'text-muted hover:text-ink'
+    }`
+
   return (
-    <div ref={ref} className="overflow-hidden rounded-2xl border border-line bg-card">
+    <div
+      ref={ref}
+      className={frameless ? 'overflow-hidden rounded-2xl bg-card' : 'overflow-hidden rounded-2xl border border-line bg-card'}
+    >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-cream/60 px-5 py-4 sm:px-6">
         <div>
-          <p className="eyebrow">Concept floor plan</p>
+          <p className="eyebrow">{view === '3d' ? '3D concept model' : 'Concept floor plan'}</p>
           <p className="tnum mt-0.5 text-[13px] text-muted">
             ~{plan.areaM2} m² · {(plan.areaM2 / 9.29).toFixed(1)} squares
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {multi &&
+          <div className="flex rounded-lg bg-cream p-1" role="tablist" aria-label="View">
+            <button role="tab" aria-selected={view === '2d'} onClick={() => setView('2d')} className={seg(view === '2d')}>
+              <Layers2 size={14} /> Plan
+            </button>
+            <button role="tab" aria-selected={view === '3d'} onClick={() => setView('3d')} className={seg(view === '3d')}>
+              <Box size={14} /> 3D
+            </button>
+          </div>
+          {multi && view === '2d' &&
             plan.storeys.map((s, i) => (
               <button
                 key={s.label}
@@ -210,14 +243,16 @@ export default function FloorplanSVG({ plan }: { plan: FpPlan }) {
                 {s.label}
               </button>
             ))}
-          <button
-            onClick={() => setShowDims(!showDims)}
-            className={`rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${
-              showDims ? 'bg-brass-soft text-brass' : 'bg-cream text-muted'
-            }`}
-          >
-            Dimensions
-          </button>
+          {view === '2d' && (
+            <button
+              onClick={() => setShowDims(!showDims)}
+              className={`rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${
+                showDims ? 'bg-brass-soft text-brass' : 'bg-cream text-muted'
+              }`}
+            >
+              Dimensions
+            </button>
+          )}
           <button
             onClick={() => setFlipped(!flipped)}
             className={`rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${
@@ -231,12 +266,17 @@ export default function FloorplanSVG({ plan }: { plan: FpPlan }) {
       </div>
       <div className="bg-paper px-3 py-4 sm:px-5">
         <div className="mx-auto max-w-[600px]">
-          <StoreyPlan key={`${active}-${flipped}`} storey={storey} showDims={showDims} animate={seen} />
+          {view === '3d' ? (
+            <Floorplan3D key={String(flipped)} plan={plan3d} />
+          ) : (
+            <StoreyPlan key={`${active}-${flipped}`} storey={storey} showDims={showDims} animate={seen} />
+          )}
         </div>
       </div>
       <p className="border-t border-line px-5 py-3 text-[11px] text-mist sm:px-6">
-        Auto-generated concept plan — indicative only, not for construction. Final working drawings are
-        prepared by the builder and may differ. Dimensions approximate.
+        {view === '3d' ? 'Drag to rotate. ' : ''}Auto-generated concept {view === '3d' ? 'model' : 'plan'} —
+        indicative only, not for construction. Final working drawings are prepared by the builder and may
+        differ. Dimensions approximate.
       </p>
     </div>
   )

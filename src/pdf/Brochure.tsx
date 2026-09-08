@@ -1,4 +1,5 @@
 import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { SITE } from '../lib/site'
 import type { Pkg } from '../lib/types'
 import { TYPE_LABEL, toSquares } from '../lib/types'
 import {
@@ -73,7 +74,7 @@ const s = StyleSheet.create({
 function Footer({ pkg, pageNo }: { pkg: Pkg; pageNo: string }) {
   return (
     <View style={s.footer} fixed>
-      <Text style={s.footerText}>AU Build Hub · 1300 539 759 · hello@aubuildhub.com.au</Text>
+      <Text style={s.footerText}>{SITE.name} · {SITE.phone} · {SITE.email}</Text>
       <Text style={s.footerText}>
         {pkg.suburb} {pkg.state} · {pageNo}
       </Text>
@@ -314,7 +315,7 @@ export default function Brochure({ pkg }: { pkg: Pkg }) {
             <View style={[s.card, { backgroundColor: PINE, borderColor: PINE }]}>
               <Text style={{ fontFamily: 'Fraunces', fontSize: 12.5, color: PAPER }}>Next steps</Text>
               <Text style={{ fontSize: 8.5, color: '#B9C4BD', marginTop: 6, lineHeight: 1.6 }}>
-                1. Call 1300 539 759 or email hello@aubuildhub.com.au{'\n'}
+                1. Call {SITE.phone} or email {SITE.email}{'\n'}
                 2. We confirm your grants, duty position and borrowing power{'\n'}
                 3. Review the fixed-price contract with your own advisers{'\n'}
                 4. Reserve with a refundable initial hold — then we build

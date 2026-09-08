@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { SITE } from '../lib/site'
 
 interface Props {
   children: ReactNode
@@ -7,6 +8,7 @@ interface Props {
 }
 interface State {
   error: Error | null
+  key?: string
 }
 
 /** A stale code-split chunk after a deploy is the one crash that a plain reload always fixes. */
@@ -31,8 +33,10 @@ export default class ErrorBoundary extends Component<Props, State> {
     }
   }
 
-  componentDidUpdate(prev: Props) {
-    if (this.state.error && prev.resetKey !== this.props.resetKey) this.setState({ error: null })
+  static getDerivedStateFromProps(props: Props, state: State & { key?: string }) {
+    // navigating to a new route clears a previous crash
+    if (state.key !== undefined && state.key !== props.resetKey) return { error: null, key: props.resetKey }
+    return { key: props.resetKey }
   }
 
   render() {
@@ -45,7 +49,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             That page hit a snag
           </h1>
           <p className="mt-3 text-[15px] leading-relaxed text-muted">
-            It's on our side, not yours. Reloading usually sorts it — or call us on 1300 539 759.
+            It's on our side, not yours. Reloading usually sorts it — or call us on {SITE.phone}.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <button

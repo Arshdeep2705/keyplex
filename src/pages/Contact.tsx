@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Clock, Mail, MapPin, Phone } from 'lucide-react'
 import Reveal from '../components/Reveal'
 import LeadForm from '../components/LeadForm'
+import { SITE } from '../lib/site'
 
 export default function Contact() {
   useEffect(() => {
@@ -22,24 +23,24 @@ export default function Contact() {
           </p>
 
           <div className="mt-10 space-y-5">
-            <a href="tel:1300539759" className="flex items-center gap-4 text-ink transition-colors hover:text-growth">
+            <a href={SITE.phoneHref} className="flex items-center gap-4 text-ink transition-colors hover:text-growth">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-cream"><Phone size={18} className="text-brass" /></span>
               <span>
-                <span className="block text-[15px] font-semibold">1300 539 759</span>
-                <span className="text-[13px] text-muted">Mon–Sat, 9am–6pm AEST</span>
+                <span className="block text-[15px] font-semibold">{SITE.phone}</span>
+                <span className="text-[13px] text-muted">{SITE.hours}</span>
               </span>
             </a>
-            <a href="mailto:hello@aubuildhub.com.au" className="flex items-center gap-4 text-ink transition-colors hover:text-growth">
+            <a href={`mailto:${SITE.email}`} className="flex items-center gap-4 text-ink transition-colors hover:text-growth">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-cream"><Mail size={18} className="text-brass" /></span>
               <span>
-                <span className="block text-[15px] font-semibold">hello@aubuildhub.com.au</span>
+                <span className="block text-[15px] font-semibold">{SITE.email}</span>
                 <span className="text-[13px] text-muted">We reply same-day</span>
               </span>
             </a>
             <div className="flex items-center gap-4 text-ink">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-cream"><MapPin size={18} className="text-brass" /></span>
               <span>
-                <span className="block text-[15px] font-semibold">Melbourne &amp; Adelaide</span>
+                <span className="block text-[15px] font-semibold">{SITE.cities}</span>
                 <span className="text-[13px] text-muted">Serving VIC and SA growth corridors</span>
               </span>
             </div>

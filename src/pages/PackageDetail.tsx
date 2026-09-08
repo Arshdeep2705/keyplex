@@ -5,16 +5,19 @@ import {
   ArrowLeftRight,
   Bath,
   BedDouble,
+  CalendarClock,
   Car,
   Check,
   Download,
   Eye,
   FileText,
+  Heart,
   Home,
   LandPlot,
   Layers,
   Loader2,
   Ruler,
+  Share2,
   Timer,
   Zap,
 } from 'lucide-react'
@@ -25,6 +28,9 @@ import { HEADLINE_RATE, estWeeklyRepayment } from '../lib/calc'
 import { floorplanInput, generateFloorplan, roomSchedule } from '../lib/floorplan'
 import { money, moneyShort, sqm } from '../lib/format'
 import { useCompare } from '../lib/CompareContext'
+import { useShortlist } from '../lib/ShortlistContext'
+import { moveInEstimate } from '../lib/timeline'
+import { SITE } from '../lib/site'
 import Gallery from '../components/Gallery'
 import FloorplanSVG from '../components/FloorplanSVG'
 import ListingMap from '../components/ListingMap'
@@ -54,6 +60,8 @@ export default function PackageDetail() {
   const [pdfBusy, setPdfBusy] = useState<'download' | 'view' | null>(null)
   const [pdfError, setPdfError] = useState('')
   const { toggle, has } = useCompare()
+  const shortlist = useShortlist()
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!slug) return
@@ -103,6 +111,8 @@ export default function PackageDetail() {
   const gallery = pkg.gallery?.length ? pkg.gallery : pkg.hero_image ? [pkg.hero_image] : []
   const inCompare = has(pkg.slug)
   const weekly = estWeeklyRepayment(pkg.price)
+  const moveIn = moveInEstimate(pkg)
+  const saved = shortlist.has(pkg.slug)
   const schedule = plan ? roomSchedule(plan) : []
 
   async function handlePdf(mode: 'download' | 'view') {
@@ -118,9 +128,25 @@ export default function PackageDetail() {
       else window.location.href = await brochureBlobUrl(pkg)
     } catch {
       win?.close()
-      setPdfError('The brochure could not be generated — please try again, or call us on 1300 539 759.')
+      setPdfError(`The brochure could not be generated — please try again, or call us on ${SITE.phone}.`)
     } finally {
       setPdfBusy(null)
+    }
+  }
+
+  async function share() {
+    if (!pkg) return
+    const url = `${SITE.url}/packages/${pkg.slug}`
+    const data = { title: `${pkg.title} — ${SITE.name}`, text: `${pkg.title}: ${money(pkg.price)} fixed price, ${pkg.beds} bed in ${pkg.suburb}`, url }
+    try {
+      if (navigator.share) await navigator.share(data)
+      else {
+        await navigator.clipboard.writeText(url)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2200)
+      }
+    } catch {
+      /* user dismissed the share sheet */
     }
   }
 
@@ -159,6 +185,11 @@ export default function PackageDetail() {
                 {pkg.address_hint ? `${pkg.address_hint} · ` : ''}
                 {pkg.estate ? `${pkg.estate} · ` : ''}
                 {pkg.suburb}, {pkg.state} {pkg.postcode}
+              </p>
+              <p className="tnum mt-4 inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-line-dark/70 bg-pine-soft/70 px-3.5 py-2 text-[13px] text-paper/85">
+                <CalendarClock size={15} className="text-brass-bright" />
+                Move in <strong className="font-semibold text-paper">≈ {moveIn.moveIn}</strong>
+                <span className="text-paper/50">· {moveIn.startLabel} · ~{moveIn.weeksAway} weeks away</span>
               </p>
             </div>
             <div className="text-right">
@@ -230,6 +261,23 @@ export default function PackageDetail() {
             >
               {inCompare ? <Check size={15} className="text-brass" /> : <ArrowLeftRight size={15} />}
               {inCompare ? 'In compare' : 'Compare'}
+            </button>
+            <button
+              onClick={() => shortlist.toggle(pkg.slug)}
+              aria-pressed={saved}
+              className={`flex items-center gap-2 rounded-lg border px-5 py-2.5 text-[14px] font-semibold transition-colors ${
+                saved ? 'border-brass bg-brass-soft text-ink' : 'border-line bg-card text-ink hover:border-brass'
+              }`}
+            >
+              <Heart size={15} className={saved ? 'fill-brass text-brass' : ''} />
+              {saved ? 'Shortlisted' : 'Shortlist'}
+            </button>
+            <button
+              onClick={share}
+              className="flex items-center gap-2 rounded-lg border border-line bg-card px-5 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-brass"
+            >
+              <Share2 size={15} />
+              {copied ? 'Link copied' : 'Share'}
             </button>
             <span className="ml-auto flex items-center gap-1.5 text-[12.5px] text-mist">
               <Eye size={14} /> {pkg.views_count + 1} views

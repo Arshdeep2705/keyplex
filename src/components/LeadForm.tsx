@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { Check, Loader2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { SITE } from '../lib/site'
 
 const BUYER_TYPES = ['First home buyer', 'Upgrading / next home', 'Investor', 'Not sure yet']
 const TIMEFRAMES = ['Ready now', '1–3 months', '3–6 months', 'Researching']
@@ -44,7 +45,7 @@ export default function LeadForm({
       setLeadId(data as string)
       setStep('qualify')
     } catch {
-      setError('Something went wrong — please call us on 1300 539 759.')
+      setError(`Something went wrong — please call us on ${SITE.phone}.`)
     } finally {
       setBusy(false)
     }

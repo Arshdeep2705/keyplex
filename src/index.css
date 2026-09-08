@@ -171,3 +171,170 @@ input[type="range"]::-webkit-slider-thumb {
   background: #16241d;
   box-shadow: 0 1px 6px rgb(15 21 18 / 0.35);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Fable pass — motion & texture layer
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ticker */
+.marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+.marquee-item {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding-right: 1.6rem;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.marquee-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 1.6rem;
+  border-radius: 999px;
+  background: #b08d57;
+}
+@keyframes marquee {
+  to { transform: translateX(-50%); }
+}
+
+/* card light sweep — driven by --mx/--my from Tilt */
+.tilt-surface {
+  --mx: 50%;
+  --my: 50%;
+}
+.card-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  background: radial-gradient(
+    520px circle at var(--mx) var(--my),
+    rgb(203 167 111 / 0.22),
+    transparent 42%
+  );
+}
+.tilt-surface:hover .card-shine {
+  opacity: 1;
+}
+
+/* hero spotlight that follows the pointer — a layer, so it never clobbers the section's own
+   background colour or blueprint grid. --sx/--sy are set on the parent and inherit down. */
+.spotlight-host {
+  --sx: 70%;
+  --sy: 30%;
+}
+.spotlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(700px circle at var(--sx) var(--sy), rgb(203 167 111 / 0.18), transparent 55%),
+    radial-gradient(1100px circle at 20% 110%, rgb(46 125 91 / 0.2), transparent 60%);
+}
+
+/* brass shimmer for primary CTAs */
+.btn-brass {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-brass::after {
+  content: "";
+  position: absolute;
+  inset: -40% -60%;
+  z-index: -1;
+  background: linear-gradient(115deg, transparent 35%, rgb(255 255 255 / 0.45) 50%, transparent 65%);
+  transform: translateX(-120%);
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.btn-brass:hover::after {
+  transform: translateX(120%);
+}
+
+/* outlined giant wordmark in the footer */
+.wordmark-outline {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: transparent;
+  -webkit-text-stroke: 1px rgb(203 167 111 / 0.35);
+  transition: color 0.6s ease, -webkit-text-stroke-color 0.6s ease;
+}
+.wordmark-outline:hover {
+  color: rgb(203 167 111 / 0.12);
+  -webkit-text-stroke-color: rgb(203 167 111 / 0.7);
+}
+
+/* underline that draws in */
+.link-draw {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-size: 0% 1.5px;
+  background-position: 0 100%;
+  transition: background-size 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.link-draw:hover {
+  background-size: 100% 1.5px;
+}
+
+/* skeleton shimmer */
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #f2ecdf 25%, #faf7f1 50%, #f2ecdf 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* slow ambient float for hero ornaments */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.float-slow {
+  animation: float-y 7s ease-in-out infinite;
+}
+
+/* brass ring pulse on the "live" indicator */
+@keyframes ping-soft {
+  0% { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.live-dot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #2e7d5b;
+  animation: ping-soft 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track,
+  .float-slow,
+  .shimmer,
+  .live-dot::before {
+    animation: none;
+  }
+  .btn-brass::after {
+    display: none;
+  }
+}
