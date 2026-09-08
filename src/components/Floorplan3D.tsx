@@ -510,6 +510,19 @@ export default function Floorplan3D({
     return () => cancelAnimationFrame(raf)
   }, [seen, spin, reduce])
 
+  // dev-only hook so automated screenshots can pin the turntable at a known angle
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    ;(window as unknown as { __fp3d?: unknown }).__fp3d = {
+      setAngle: (a: number) => {
+        angle.current = ((a % 360) + 360) % 360
+        idleUntil.current = Number.POSITIVE_INFINITY
+        progress.current = 1
+        tick((t) => t + 1)
+      },
+    }
+  }, [])
+
   function onDown(e: React.PointerEvent<SVGSVGElement>) {
     drag.current = { x: e.clientX, a: angle.current, moved: false }
     ;(e.target as Element).setPointerCapture?.(e.pointerId)
