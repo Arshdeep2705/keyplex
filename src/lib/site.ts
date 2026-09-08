@@ -5,8 +5,8 @@
 export const SITE = {
   name: 'AU Build Hub',
   url: 'https://aubuildhub.com.au',
-  phone: '1300 539 759',
-  phoneHref: 'tel:1300539759',
+  phone: '0450 131 714',
+  phoneHref: 'tel:0450131714',
   email: 'hello@aubuildhub.com.au',
   hours: 'Mon–Sat, 9am–6pm AEST',
   regions: 'Victoria & South Australia',
