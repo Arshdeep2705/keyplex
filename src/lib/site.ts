@@ -1,6 +1,6 @@
 /**
  * Business identity used everywhere a phone, email or hours appear — change it here, not in pages.
- * TODO(owner): replace the phone number and hours with the real ones before launch.
+ * Phone confirmed by the owner 8 Sep 2026; hours are still an assumption.
  */
 export const SITE = {
   name: 'AU Build Hub',
