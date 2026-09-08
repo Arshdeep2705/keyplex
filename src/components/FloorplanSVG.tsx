@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Layers2 } from 'lucide-react'
+import { Box, FileImage, Layers2 } from 'lucide-react'
 import { flipStorey, type FpPlan, type FpStorey } from '../lib/floorplan'
 import Floorplan3D from './Floorplan3D'
 
@@ -164,14 +164,17 @@ export default function FloorplanSVG({
   plan,
   defaultView = '2d',
   frameless = false,
+  planImage = null,
 }: {
   plan: FpPlan
-  defaultView?: '2d' | '3d'
+  defaultView?: '2d' | '3d' | 'builder'
   /** drop the card chrome (used inside the dark hero panel) */
   frameless?: boolean
+  /** the builder's own drawn plan, when one has been uploaded — shown as the default view */
+  planImage?: string | null
 }) {
   const [active, setActive] = useState(0)
-  const [view, setView] = useState<'2d' | '3d'>(defaultView)
+  const [view, setView] = useState<'2d' | '3d' | 'builder'>(planImage ? 'builder' : defaultView === 'builder' ? '2d' : defaultView)
   const [showDims, setShowDims] = useState(true)
   const [flipped, setFlipped] = useState(false)
   const [seen, setSeen] = useState(false)
@@ -217,13 +220,18 @@ export default function FloorplanSVG({
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-cream/60 px-5 py-4 sm:px-6">
         <div>
-          <p className="eyebrow">{view === '3d' ? '3D concept model' : 'Concept floor plan'}</p>
+          <p className="eyebrow">{view === 'builder' ? "Builder's floor plan" : view === '3d' ? '3D concept model' : 'Concept floor plan'}</p>
           <p className="tnum mt-0.5 text-[13px] text-muted">
             ~{plan.areaM2} m² · {(plan.areaM2 / 9.29).toFixed(1)} squares
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-lg bg-cream p-1" role="tablist" aria-label="View">
+            {planImage && (
+              <button role="tab" aria-selected={view === 'builder'} onClick={() => setView('builder')} className={seg(view === 'builder')}>
+                <FileImage size={14} /> Builder plan
+              </button>
+            )}
             <button role="tab" aria-selected={view === '2d'} onClick={() => setView('2d')} className={seg(view === '2d')}>
               <Layers2 size={14} /> Plan
             </button>
@@ -266,7 +274,14 @@ export default function FloorplanSVG({
       </div>
       <div className="bg-paper px-3 py-4 sm:px-5">
         <div className="mx-auto max-w-[600px]">
-          {view === '3d' ? (
+          {view === 'builder' && planImage ? (
+            <img
+              src={planImage}
+              alt="Builder's floor plan"
+              className={`mx-auto w-full ${flipped ? '-scale-x-100' : ''}`}
+              loading="lazy"
+            />
+          ) : view === '3d' ? (
             <Floorplan3D key={String(flipped)} plan={plan3d} />
           ) : (
             <StoreyPlan key={`${active}-${flipped}`} storey={storey} showDims={showDims} animate={seen} />
@@ -274,9 +289,9 @@ export default function FloorplanSVG({
         </div>
       </div>
       <p className="border-t border-line px-5 py-3 text-[11px] text-mist sm:px-6">
-        {view === '3d' ? 'Drag to rotate. ' : ''}Auto-generated concept {view === '3d' ? 'model' : 'plan'} —
-        indicative only, not for construction. Final working drawings are prepared by the builder and may
-        differ. Dimensions approximate.
+        {view === 'builder'
+          ? "The builder's presentation plan — illustrative; refer to the detailed drawings for exact layouts and dimensions."
+          : `${view === '3d' ? 'Drag to rotate. ' : ''}Auto-generated concept ${view === '3d' ? 'model' : 'plan'} — indicative only, not for construction. Final working drawings are prepared by the builder and may differ. Dimensions approximate.`}
       </p>
     </div>
   )

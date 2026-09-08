@@ -313,7 +313,7 @@ export default function PackageDetail() {
               {/* floorplan */}
               {plan && (
                 <div id="floorplan">
-                  <FloorplanSVG plan={plan} />
+                  <FloorplanSVG plan={plan} planImage={pkg.floorplan_url} />
                 </div>
               )}
 
