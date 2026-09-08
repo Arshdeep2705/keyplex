@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { CompareProvider } from './lib/CompareContext'
+import ErrorBoundary from './components/ErrorBoundary'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import CompareBar from './components/CompareBar'
@@ -19,16 +20,23 @@ import Leads from './admin/Leads'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
-  useEffect(() => window.scrollTo(0, 0), [pathname])
+  // Braces matter: some browsers/extensions make scrollTo return a Promise, and React would
+  // treat that as the cleanup, crashing with "destroy is not a function" on the next route change.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
   return null
 }
 
 function PublicLayout() {
+  const { pathname } = useLocation()
   return (
     <>
       <Nav />
       <main>
-        <Outlet />
+        <ErrorBoundary resetKey={pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
       <Footer />
       <CompareBar />

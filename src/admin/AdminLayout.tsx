@@ -69,7 +69,9 @@ export default function AdminLayout() {
   const [menuOpen, setMenuOpen] = useState(false)
   const { pathname } = useLocation()
 
-  useEffect(() => setMenuOpen(false), [pathname])
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [pathname])
 
   useEffect(() => {
     document.title = 'Admin — AU Build Hub'
