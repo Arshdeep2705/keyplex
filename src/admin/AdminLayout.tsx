@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
-import { Building2, Inbox, LayoutDashboard, Loader2, LogOut, ExternalLink, Menu, X } from 'lucide-react'
+import { Building2, Inbox, Landmark, LayoutDashboard, Loader2, LogOut, ExternalLink, Menu, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import Logo from '../components/Logo'
 
@@ -141,6 +141,9 @@ export default function AdminLayout() {
       </NavLink>
       <NavLink to="/admin/leads" className={linkCls}>
         <Inbox size={17} /> Leads
+      </NavLink>
+      <NavLink to="/admin/areas" className={linkCls}>
+        <Landmark size={17} /> Area intel
       </NavLink>
     </>
   )

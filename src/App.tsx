@@ -19,6 +19,7 @@ import Dashboard from './admin/Dashboard'
 import PackagesList from './admin/PackagesList'
 import PackageEditor from './admin/PackageEditor'
 import Leads from './admin/Leads'
+import Areas from './admin/Areas'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -75,6 +76,7 @@ export default function App() {
             <Route path="packages/new" element={<PackageEditor />} />
             <Route path="packages/:id" element={<PackageEditor />} />
             <Route path="leads" element={<Leads />} />
+            <Route path="areas" element={<Areas />} />
           </Route>
         </Routes>
       </ShortlistProvider>

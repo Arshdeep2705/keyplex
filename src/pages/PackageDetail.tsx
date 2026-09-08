@@ -40,6 +40,10 @@ import InclusionsAccordion from '../components/InclusionsAccordion'
 import LeadForm from '../components/LeadForm'
 import PackageCard from '../components/PackageCard'
 import Reveal from '../components/Reveal'
+import NearbyPanel from '../components/NearbyPanel'
+import AreaIntel from '../components/AreaIntel'
+import InvestorPanel from '../components/InvestorPanel'
+import AskPanel from '../components/AskPanel'
 
 function Spec({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
@@ -62,6 +66,7 @@ export default function PackageDetail() {
   const { toggle, has } = useCompare()
   const shortlist = useShortlist()
   const [copied, setCopied] = useState(false)
+  const [investSummary, setInvestSummary] = useState<Record<string, unknown> | null>(null)
 
   useEffect(() => {
     if (!slug) return
@@ -382,13 +387,22 @@ export default function PackageDetail() {
                     Pin shows the estate / lot location and is indicative — exact siting is confirmed at
                     contract. Click the map to enable scroll zoom.
                   </p>
+                  <div className="mt-6">
+                    <NearbyPanel lat={pkg.lat} lng={pkg.lng} suburb={pkg.suburb} />
+                  </div>
                 </div>
               )}
+
+              <AreaIntel state={pkg.state} suburb={pkg.suburb} />
             </div>
 
             {/* right column */}
             <div className="min-w-0 space-y-6">
               <TrustCard pkg={pkg} />
+              <AskPanel
+                pkg={pkg}
+                context={{ move_in: moveIn, investor_model: investSummary, weekly_repayment_headline: Math.round(weekly) }}
+              />
               <div id="enquire">
                 <p className="eyebrow mb-3">Enquire about this package</p>
                 <LeadForm packageId={pkg.id} source={`package:${pkg.slug}`} compact />
@@ -399,6 +413,9 @@ export default function PackageDetail() {
           {/* calculator full width */}
           <div className="mt-12">
             <CalculatorPanel pkg={pkg} />
+          </div>
+          <div className="mt-8">
+            <InvestorPanel pkg={pkg} onSummary={setInvestSummary} />
           </div>
 
           {/* similar */}

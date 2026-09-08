@@ -7,6 +7,8 @@ import { fetchPublished } from '../lib/data'
 import { dutiableValue, dutyWithConcession, estWeeklyRepayment, fhog } from '../lib/calc'
 import { money, sqm } from '../lib/format'
 import { useCompare } from '../lib/CompareContext'
+import { moveInEstimate } from '../lib/timeline'
+import { defaultInputs, runModel } from '../lib/invest'
 
 export default function Compare() {
   const { slugs, toggle, prune } = useCompare()
@@ -73,8 +75,34 @@ export default function Compare() {
     { label: 'Title status', render: (p) => p.title_status ?? '—' },
     { label: 'Build time', render: (p) => (p.build_time_weeks ? `~${p.build_time_weeks} weeks` : '—') },
     {
+      label: 'Move-in estimate',
+      render: (p) => {
+        const m = moveInEstimate(p)
+        return <span className="tnum"><strong className="text-ink">≈ {m.moveIn}</strong><span className="block text-[11px] text-mist">{m.startLabel}</span></span>
+      },
+    },
+    {
       label: 'Rental appraisal',
-      render: (p) => (p.total_weekly_rent ? <span className="tnum">{money(p.total_weekly_rent)}/wk</span> : '—'),
+      render: (p) => (p.total_weekly_rent ? <span className="tnum">{money(p.total_weekly_rent)}/wk</span> : <span className="text-mist">— (est. used below)</span>),
+    },
+    {
+      label: 'Gross yield',
+      render: (p) => {
+        const r = runModel(p, defaultInputs(p))
+        return <span className="tnum">{(r.grossYield * 100).toFixed(1)}% <span className="text-[11px] text-mist">net {(r.netYield * 100).toFixed(1)}%</span></span>
+      },
+    },
+    {
+      label: 'Investor after tax*',
+      render: (p) => {
+        const r = runModel(p, defaultInputs(p))
+        const wk = r.weeklyOutOfPocket
+        return <span className={`tnum font-semibold ${wk >= 0 ? 'text-growth' : 'text-danger'}`}>{wk >= 0 ? '+' : '−'}{money(Math.round(Math.abs(wk)))}/wk</span>
+      },
+    },
+    {
+      label: 'Year-1 depreciation (est.)',
+      render: (p) => <span className="tnum">{money(Math.round(runModel(p, defaultInputs(p)).year1.depreciation))}</span>,
     },
   ]
 
@@ -147,7 +175,7 @@ export default function Compare() {
               </tbody>
             </table>
             <p className="mt-5 text-[11.5px] text-mist">
-              *Repayments assume 10% deposit, 5.90% p.a., 30-year P&amp;I. FHB duty uses 2026 VIC/SA
+              *Repayments assume 10% deposit, 5.90% p.a., 30-year P&amp;I. Investor after-tax figure assumes 20% deposit, 6.25% interest-only, the 37% + Medicare tax band and the recorded (or estimated) rent — open the package for the full model. FHB duty uses 2026 VIC/SA
               first-home-buyer rules for new builds (two-part contracts assessed on land only); subject to
               eligibility. Rental appraisals are projections, not guarantees.
             </p>
