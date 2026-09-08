@@ -43,7 +43,7 @@ function Slider({
   )
 }
 
-const k = (n: number) => `$${Math.round(n / 1000)}k`
+const k = (n: number) => `${n < 0 ? '−' : ''}$${Math.abs(Math.round(n / 1000))}k`
 
 /** Property value vs loan balance over the projection — one axis, two series, direct-labelled. */
 function EquityChart({ rows }: { rows: YearRow[] }) {
