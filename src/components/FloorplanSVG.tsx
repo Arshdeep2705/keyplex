@@ -220,21 +220,22 @@ export default function FloorplanSVG({
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-cream/60 px-5 py-4 sm:px-6">
         <div>
-          <p className="eyebrow">{view === 'builder' ? "Builder's floor plan" : view === '3d' ? '3D concept model' : 'Concept floor plan'}</p>
+          <p className="eyebrow">{view === 'builder' ? 'Floor plan' : view === '3d' ? (planImage ? '3D model of this home' : '3D concept model') : 'Concept floor plan'}</p>
           <p className="tnum mt-0.5 text-[13px] text-muted">
             ~{plan.areaM2} m² · {(plan.areaM2 / 9.29).toFixed(1)} squares
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-lg bg-cream p-1" role="tablist" aria-label="View">
-            {planImage && (
+            {planImage ? (
               <button role="tab" aria-selected={view === 'builder'} onClick={() => setView('builder')} className={seg(view === 'builder')}>
-                <FileImage size={14} /> Builder plan
+                <FileImage size={14} /> Floor plan
+              </button>
+            ) : (
+              <button role="tab" aria-selected={view === '2d'} onClick={() => setView('2d')} className={seg(view === '2d')}>
+                <Layers2 size={14} /> Plan
               </button>
             )}
-            <button role="tab" aria-selected={view === '2d'} onClick={() => setView('2d')} className={seg(view === '2d')}>
-              <Layers2 size={14} /> Plan
-            </button>
             <button role="tab" aria-selected={view === '3d'} onClick={() => setView('3d')} className={seg(view === '3d')}>
               <Box size={14} /> 3D
             </button>
@@ -291,7 +292,9 @@ export default function FloorplanSVG({
       <p className="border-t border-line px-5 py-3 text-[11px] text-mist sm:px-6">
         {view === 'builder'
           ? "The builder's presentation plan — illustrative; refer to the detailed drawings for exact layouts and dimensions."
-          : `${view === '3d' ? 'Drag to rotate. ' : ''}Auto-generated concept ${view === '3d' ? 'model' : 'plan'} — indicative only, not for construction. Final working drawings are prepared by the builder and may differ. Dimensions approximate.`}
+          : planImage
+            ? "Drag to rotate · lift the roof to see the rooms. Model traced from the builder's plan — indicative only; final working drawings prevail."
+            : `${view === '3d' ? 'Drag to rotate. ' : ''}Auto-generated concept ${view === '3d' ? 'model' : 'plan'} — indicative only, not for construction. Final working drawings are prepared by the builder and may differ. Dimensions approximate.`}
       </p>
     </div>
   )

@@ -22,6 +22,7 @@ import { geocodePackage } from '../lib/geocode'
 import { money, slugify } from '../lib/format'
 import PackageCard from '../components/PackageCard'
 import FloorplanSVG from '../components/FloorplanSVG'
+import type { FpPlan } from '../lib/floorplan'
 import ListingMap from '../components/ListingMap'
 
 const STOCK: string[] = [
@@ -109,6 +110,8 @@ export default function PackageEditor() {
   const [savedAt, setSavedAt] = useState<string>('')
   const [error, setError] = useState('')
   const [geoBusy, setGeoBusy] = useState(false)
+  const [tracing, setTracing] = useState(false)
+  const [traceMsg, setTraceMsg] = useState('')
   const [geoMatch, setGeoMatch] = useState<string>('')
 
   useEffect(() => {
@@ -201,12 +204,51 @@ export default function PackageEditor() {
     setGeoBusy(false)
   }
 
+  async function uploadPlan(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setTracing(true)
+    setTraceMsg('Uploading plan…')
+    try {
+      const url = await uploadImage(file)
+      set({ floorplan_url: url, plan_rooms: null })
+      setTraceMsg('Plan uploaded — now trace it to build the 3D model.')
+    } catch {
+      setTraceMsg('Upload failed — try a JPG or PNG under 10 MB.')
+    } finally {
+      setTracing(false)
+      e.target.value = ''
+    }
+  }
+
+  async function tracePlan() {
+    if (!form.floorplan_url) return
+    setTracing(true)
+    setTraceMsg('Reading the plan… this takes 20–40 seconds.')
+    try {
+      const hint = `${form.beds ?? '?'} bed, ${form.baths ?? '?'} bath, ${form.cars ?? '?'} car, house area ${form.house_area ?? '?'} m², ${form.storeys ?? 1} storey`
+      const { data, error } = await supabase.functions.invoke('trace-plan', { body: { image_url: form.floorplan_url, hint } })
+      if (error) throw error
+      const plan = (data as { plan?: FpPlan; error?: string })?.plan
+      if (!plan) throw new Error((data as { error?: string })?.error ?? 'no plan')
+      plan.areaM2 = form.house_area ?? plan.areaM2
+      set({ plan_rooms: plan })
+      setTraceMsg(`Traced ${plan.storeys[0]?.rooms.length ?? 0} rooms — check the 3D preview, then save.`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : ''
+      setTraceMsg(/not set|configured/i.test(msg) ? 'AI tracing needs the ANTHROPIC_API_KEY secret in Supabase.' : 'Tracing failed — try a cleaner plan image, or try again.')
+    } finally {
+      setTracing(false)
+    }
+  }
+
   /* live computed metrics */
   const weekly = form.price ? estWeeklyRepayment(form.price) : null
   const dutyFhb = form.price ? dutyWithConcession(form.state ?? 'VIC', dutiableValue(form as Pkg), true) : null
   const grant = form.price && form.state ? fhog(form.state, form.price) : 0
 
   const plan = useMemo(() => {
+    if (form.plan_rooms) return form.plan_rooms
     if (!form.beds) return null
     return generateFloorplan(
       floorplanInput({
@@ -261,6 +303,7 @@ export default function PackageEditor() {
     energy_rating: form.energy_rating ?? null,
     description: form.description ?? null,
     floorplan_url: null,
+    plan_rooms: null,
     brochure_url: null,
     lat: null,
     lng: null,
@@ -666,6 +709,43 @@ export default function PackageEditor() {
               </label>
             </div>
 
+            <div className="mt-5 rounded-xl border border-dashed border-line p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-mist">Builder's floor plan</p>
+                  <p className="mt-0.5 text-[12.5px] text-muted">
+                    Upload the plan image, then trace it — the site shows this plan instead of the concept one and builds the 3D model from it.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-line px-3.5 py-2 text-[13px] font-semibold text-ink transition-colors hover:border-brass">
+                    <Upload size={14} /> {form.floorplan_url ? 'Replace plan' : 'Upload plan'}
+                    <input type="file" accept="image/*" className="hidden" onChange={uploadPlan} />
+                  </label>
+                  {form.floorplan_url && (
+                    <button
+                      onClick={tracePlan}
+                      disabled={tracing}
+                      className="flex items-center gap-2 rounded-lg bg-pine px-3.5 py-2 text-[13px] font-semibold text-paper disabled:opacity-60"
+                    >
+                      {tracing ? <Loader2 size={14} className="animate-spin" /> : null}
+                      {form.plan_rooms ? 'Re-trace to 3D' : 'Trace to 3D (AI)'}
+                    </button>
+                  )}
+                  {form.floorplan_url && (
+                    <button onClick={() => set({ floorplan_url: null, plan_rooms: null })} className="text-[12.5px] font-medium text-muted hover:text-danger">
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+              {form.floorplan_url && (
+                <img src={form.floorplan_url} alt="Builder's floor plan" className="mt-3 max-h-56 rounded-lg border border-line bg-paper object-contain" />
+              )}
+              {traceMsg && <p className="mt-2 text-[12.5px] font-medium text-ink">{traceMsg}</p>}
+              {form.plan_rooms && !traceMsg && <p className="mt-2 text-[12.5px] text-growth">3D model traced from this plan ✓</p>}
+            </div>
+
             {(form.gallery?.length ?? 0) > 0 && (
               <div className="mt-4 flex flex-wrap gap-3">
                 {form.gallery!.map((url) => (
@@ -855,7 +935,7 @@ export default function PackageEditor() {
           {plan && (
             <div>
               <p className="field-label">Live floorplan preview</p>
-              <FloorplanSVG plan={plan} />
+              <FloorplanSVG plan={plan} planImage={form.floorplan_url ?? null} />
             </div>
           )}
         </div>

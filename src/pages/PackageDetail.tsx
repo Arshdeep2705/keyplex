@@ -92,7 +92,8 @@ export default function PackageDetail() {
     }
   }, [slug])
 
-  const plan = useMemo(() => (pkg ? generateFloorplan(floorplanInput(pkg)) : null), [pkg])
+  // the builder's traced layout wins over the generated concept plan
+  const plan = useMemo(() => (pkg ? (pkg.plan_rooms ?? generateFloorplan(floorplanInput(pkg))) : null), [pkg])
 
   if (pkg === undefined) {
     return (

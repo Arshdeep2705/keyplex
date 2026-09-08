@@ -1,3 +1,5 @@
+import type { FpPlan } from './floorplan'
+
 export type PackageType =
   | 'coliving'
   | 'dual_key'
@@ -58,6 +60,8 @@ export interface Pkg {
   hero_image: string | null
   gallery: string[]
   floorplan_url: string | null
+  /** traced room layout of the builder's plan — replaces the generated concept plan when present */
+  plan_rooms: FpPlan | null
   brochure_url: string | null
   lat: number | null
   lng: number | null
